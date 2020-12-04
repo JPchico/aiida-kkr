@@ -50,22 +50,31 @@ class kkr_startpot_wc(WorkChain):
 
     _workflowversion = __version__
     _wf_default = {
-        'num_rerun': 4,                          # number of times voronoi+starting dos+checks is rerun to ensure non-negative DOS etc
-        'fac_cls_increase' : 1.15, # alat         # factor by which the screening cluster is increased each iteration (up to num_rerun times)
-        'natom_in_cls_min' : 79,                  # minimum number of atoms in screening cluster
-        'delta_e_min' : 1., # eV                  # minimal distance in DOS contour to emin and emax in eV
-        'threshold_dos_zero' : 10**-2, #states/eV #
-        'check_dos': False,                       # logical to determine if DOS is computed and checked
-        'delta_e_min_core_states': 0.2, # Ry      # minimal distance of start of energy contour to highest lying core state in Ry
-        'ef_set': None                            # set Fermi level of starting potential to this value
-        }
+        # number of times voronoi+starting dos+checks is rerun to ensure non-negative DOS etc
+        'num_rerun': 4,
+        # alat         # factor by which the screening cluster is increased each iteration (up to num_rerun times)
+        'fac_cls_increase': 1.15,
+        # minimum number of atoms in screening cluster
+        'natom_in_cls_min': 79,
+        # eV                  # minimal distance in DOS contour to emin and emax in eV
+        'delta_e_min': 1.,
+        'threshold_dos_zero': 10**-2,  # states/eV #
+        # logical to determine if DOS is computed and checked
+        'check_dos': False,
+        # Ry      # minimal distance of start of energy contour to highest lying core state in Ry
+        'delta_e_min_core_states': 0.2,
+        # set Fermi level of starting potential to this value
+        'ef_set': None
+    }
     _options_default = {
-        'queue_name' : '',                        # Queue name to submit jobs to
-        'resources': {"num_machines": 1},         # resources to allowcate for the job
-        'max_wallclock_seconds' : 60*60,          # walltime after which the job gets killed (gets parsed to KKR)
-        'withmpi' : True,                         # execute KKR with mpi or without
-        'custom_scheduler_commands' : '',         # some additional scheduler commands
-        }
+        'queue_name': '',                        # Queue name to submit jobs to
+        # resources to allowcate for the job
+        'resources': {"num_machines": 1},
+        # walltime after which the job gets killed (gets parsed to KKR)
+        'max_wallclock_seconds': 60*60,
+        'withmpi': True,                         # execute KKR with mpi or without
+        'custom_scheduler_commands': '',         # some additional scheduler commands
+    }
     # add defaults of dos_params since they are passed onto that workflow
     for key, value in kkr_dos_wc.get_wf_defaults(silent=True).items():
         if key == 'dos_params':
@@ -83,7 +92,8 @@ class kkr_startpot_wc(WorkChain):
         Print and return _wf_defaults dictionary. Can be used to easily create set of wf_parameters.
         returns _wf_defaults
         """
-        if not silent: print('Version of workflow: {}'.format(self._workflowversion))
+        if not silent:
+            print('Version of workflow: {}'.format(self._workflowversion))
         return self._wf_default
 
     @classmethod
@@ -98,41 +108,52 @@ class kkr_startpot_wc(WorkChain):
         spec.input("options", valid_type=Dict, required=False,
                    default=lambda: Dict(dict=cls._options_default), help="Computer options passed onto the calculations")
         spec.input("structure", valid_type=StructureData, required=False, help="Structure for which the starting potential"
-            " should be constructed, not needed if parent_KKR is given (typically used to increase the lmax but use the "
-            "output potential of the parent_KKR as starting potential).")
-        spec.input("kkr", valid_type=Code, required=False, help="Kkr code, only needed only if DOS is calculated.")
-        spec.input("voronoi", valid_type=Code, required=True, help="Voronoi code")
-        spec.input("calc_parameters", valid_type=Dict, required=False, help="KKR-secific parameters passed onto the VoronoiCalculation (lmax etc.).")
-        spec.input("startpot_overwrite", valid_type=SinglefileData, required=False, help="Potential which can be used instead of the output potential Voronoi constructs.")
+                   " should be constructed, not needed if parent_KKR is given (typically used to increase the lmax but use the "
+                   "output potential of the parent_KKR as starting potential).")
+        spec.input("kkr", valid_type=Code, required=False,
+                   help="Kkr code, only needed only if DOS is calculated.")
+        spec.input("voronoi", valid_type=Code,
+                   required=True, help="Voronoi code")
+        spec.input("calc_parameters", valid_type=Dict, required=False,
+                   help="KKR-secific parameters passed onto the VoronoiCalculation (lmax etc.).")
+        spec.input("startpot_overwrite", valid_type=SinglefileData, required=False,
+                   help="Potential which can be used instead of the output potential Voronoi constructs.")
         spec.input("parent_KKR", valid_type=RemoteData, required=False, help="RemoteData node of a KKR calculation which "
-            "is used to overwrite the output potential Voronoi constructs (typically used to increase lmax). Cannot be "
-            "used with a different structure in the input since the structure is extracted from the parent_KKR.")
+                   "is used to overwrite the output potential Voronoi constructs (typically used to increase lmax). Cannot be "
+                   "used with a different structure in the input since the structure is extracted from the parent_KKR.")
         # define output nodes
-        spec.output('results_vorostart_wc', valid_type=Dict, required=True, help='')
-        spec.output('last_doscal_results', valid_type=Dict, required=False, help='')
-        spec.output('last_voronoi_results', valid_type=Dict, required=False, help='')
-        spec.output('last_voronoi_remote', valid_type=RemoteData, required=False, help='')
-        spec.output('last_params_voronoi', valid_type=Dict, required=False, help='')
-        spec.output('last_doscal_dosdata', valid_type=XyData, required=False, help='')
-        spec.output('last_doscal_dosdata_interpol', valid_type=XyData, required=False, help='')
+        spec.output('results_vorostart_wc',
+                    valid_type=Dict, required=True, help='')
+        spec.output('last_doscal_results', valid_type=Dict,
+                    required=False, help='')
+        spec.output('last_voronoi_results', valid_type=Dict,
+                    required=False, help='')
+        spec.output('last_voronoi_remote', valid_type=RemoteData,
+                    required=False, help='')
+        spec.output('last_params_voronoi', valid_type=Dict,
+                    required=False, help='')
+        spec.output('last_doscal_dosdata', valid_type=XyData,
+                    required=False, help='')
+        spec.output('last_doscal_dosdata_interpol',
+                    valid_type=XyData, required=False, help='')
         # definition of exit codes if the workflow needs to be terminated
         spec.exit_code(201, 'ERROR_INVALID_KKRCODE',
-          message='The code you provided for kkr does not use the plugin kkr.kkr')
+                       message='The code you provided for kkr does not use the plugin kkr.kkr')
         spec.exit_code(202, 'ERROR_INVALID_VORONOICODE',
-          message='The code you provided for voronoi does not use the plugin kkr.voro')
+                       message='The code you provided for voronoi does not use the plugin kkr.voro')
         spec.exit_code(203, 'ERROR_VORONOI_FAILED',
-          message='Voronoi calculation unsuccessful. Check inputs')
+                       message='Voronoi calculation unsuccessful. Check inputs')
         spec.exit_code(204, 'ERROR_VORONOI_PARSING_FAILED',
-          message='Voronoi calculation unsuccessful. Check inputs.')
+                       message='Voronoi calculation unsuccessful. Check inputs.')
         spec.exit_code(205, 'ERROR_VORONOI_INVALID_RADII',
-          message='Voronoi calculation unsuccessful. Structure inconsistent. Maybe you need empty spheres?')
+                       message='Voronoi calculation unsuccessful. Structure inconsistent. Maybe you need empty spheres?')
         spec.exit_code(206, 'ERROR_DOSRUN_FAILED',
-          message='DOS run unsuccessful. Check inputs.')
+                       message='DOS run unsuccessful. Check inputs.')
         spec.exit_code(207, 'ERROR_BOTH_STRUCTURE_AND_PARENT_KKR_GIVEN',
-          message='Can only take either structure or parent_KKR as input.')
+                       message='Can only take either structure or parent_KKR as input.')
         spec.exit_code(208, 'ERROR_NEITHER_STRUCTURE_NOR_PARENT_KKR_GIVEN',
-          message='Need either structure or parent_KKR as input.')
-        #spec.exit_code(207, 'ERROR_CORE_STATES_IN_CONTOUR',
+                       message='Need either structure or parent_KKR as input.')
+        # spec.exit_code(207, 'ERROR_CORE_STATES_IN_CONTOUR',
         #  message='ERROR: contour contains core states!!!')
 
         # Here the structure of the workflow is defined
@@ -157,7 +178,6 @@ class kkr_startpot_wc(WorkChain):
             cls.error_handler
         )
 
-
     def start(self):
         """
         init context and some parameters
@@ -175,15 +195,18 @@ class kkr_startpot_wc(WorkChain):
         if 'parent_KKR' in self.inputs:
             has_parent_KKR = True
             # find structure from parent_KKR
-            self.ctx.structure, _ = VoronoiCalculation.find_parent_structure(self.inputs.parent_KKR) 
+            self.ctx.structure, _ = VoronoiCalculation.find_parent_structure(
+                self.inputs.parent_KKR)
         else:
             has_parent_KKR = False
 
         if has_struc and has_parent_KKR:
-            self.report('ERROR: caught exit code ERROR_BOTH_STRUCTURE_AND_PARENT_KKR_GIVEN')
+            self.report(
+                'ERROR: caught exit code ERROR_BOTH_STRUCTURE_AND_PARENT_KKR_GIVEN')
             return self.exit_codes.ERROR_BOTH_STRUCTURE_AND_PARENT_KKR_GIVEN
         if (not has_struc) and (not has_parent_KKR):
-            self.report('ERROR: caught exit code ERROR_NEITHER_STRUCTURE_NOR_PARENT_KKR_GIVEN')
+            self.report(
+                'ERROR: caught exit code ERROR_NEITHER_STRUCTURE_NOR_PARENT_KKR_GIVEN')
             return self.exit_codes.ERROR_NEITHER_STRUCTURE_NOR_PARENT_KKR_GIVEN
 
         ####### init    #######
@@ -191,12 +214,11 @@ class kkr_startpot_wc(WorkChain):
         # internal para /control para
         self.ctx.exit_code = None
 
-
         # input para
         wf_dict = self.inputs.wf_parameters.get_dict()
         options_dict = self.inputs.options.get_dict()
 
-        #TODO: check for completeness
+        # TODO: check for completeness
         if wf_dict == {}:
             wf_dict = self._wf_default
             self.report('INFO: using default wf parameter')
@@ -205,74 +227,93 @@ class kkr_startpot_wc(WorkChain):
             self.report('INFO: using default options')
 
         # set values, or defaults for computer options
-        self.ctx.withmpi = options_dict.get('withmpi', self._options_default['withmpi'])
-        self.ctx.resources = options_dict.get('resources', self._options_default['resources'])
-        self.ctx.max_wallclock_seconds = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
-        self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
-        self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
+        self.ctx.withmpi = options_dict.get(
+            'withmpi', self._options_default['withmpi'])
+        self.ctx.resources = options_dict.get(
+            'resources', self._options_default['resources'])
+        self.ctx.max_wallclock_seconds = options_dict.get(
+            'max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
+        self.ctx.queue = options_dict.get(
+            'queue_name', self._options_default['queue_name'])
+        self.ctx.custom_scheduler_commands = options_dict.get(
+            'custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
 
         # set DOS parameters
-        self.ctx.dos_params_dict = wf_dict.get('dos_params', self._wf_default['dos_params'])
+        self.ctx.dos_params_dict = wf_dict.get(
+            'dos_params', self._wf_default['dos_params'])
 
         # set label and description of the workflow
-        self.ctx.description_wf = self.inputs.get('_description', self._wf_description)
+        self.ctx.description_wf = self.inputs.get(
+            '_description', self._wf_description)
         self.ctx.label_wf = self.inputs.get('_label', self._wf_label)
 
         # iterative rerunning parameters
         self.ctx.iter = 0
-        self.ctx.Nrerun = wf_dict.get('num_rerun', self._wf_default['num_rerun'])
+        self.ctx.Nrerun = wf_dict.get(
+            'num_rerun', self._wf_default['num_rerun'])
 
         # initialize checking booleans
         self.ctx.is_starting_iter = True
         self.ctx.doscheck_ok = False
         self.ctx.voro_ok = False
-        self.ctx.check_dos = wf_dict.get('check_dos', self._wf_default['check_dos'])
+        self.ctx.check_dos = wf_dict.get(
+            'check_dos', self._wf_default['check_dos'])
         self.ctx.dos_check_fail_reason = None
 
         # some physical parameters that are reused
-        self.ctx.nclsmin = wf_dict.get('natom_in_cls_min', self._wf_default['natom_in_cls_min'])
-        self.ctx.fac_clsincrease = wf_dict.get('fac_cls_increase', self._wf_default['fac_cls_increase'])
+        self.ctx.nclsmin = wf_dict.get(
+            'natom_in_cls_min', self._wf_default['natom_in_cls_min'])
+        self.ctx.fac_clsincrease = wf_dict.get(
+            'fac_cls_increase', self._wf_default['fac_cls_increase'])
         self.ctx.efermi = None
 
         # find starting cluster radius
-        self.ctx.r_cls = self.find_cluster_radius_alat() # find cluster radius (in alat units)
+        # find cluster radius (in alat units)
+        self.ctx.r_cls = self.find_cluster_radius_alat()
 
         # difference in eV to emin (e_fermi) if emin (emax) are larger (smaller) than emin (e_fermi)
-        self.ctx.delta_e = wf_dict.get('delta_e_min', self._wf_default['delta_e_min'])
+        self.ctx.delta_e = wf_dict.get(
+            'delta_e_min', self._wf_default['delta_e_min'])
         # threshold for dos comparison (comparison of dos at emin)
-        self.ctx.threshold_dos_zero = wf_dict.get('threshold_dos_zero', self._wf_default['threshold_dos_zero'])
-        self.ctx.min_dist_core_states = wf_dict.get('delta_e_min_core_states', self._wf_default['delta_e_min_core_states'])
+        self.ctx.threshold_dos_zero = wf_dict.get(
+            'threshold_dos_zero', self._wf_default['threshold_dos_zero'])
+        self.ctx.min_dist_core_states = wf_dict.get(
+            'delta_e_min_core_states', self._wf_default['delta_e_min_core_states'])
 
         # set Fermi level with input value
         self.ctx.ef_set = wf_dict.get('ef_set', self._wf_default['ef_set'])
 
-        #TODO add missing info
+        # TODO add missing info
         # print the inputs
-        self.report('INFO: use the following parameter:\n'
-                    'withmpi: {}\n'
-                    'Resources: {}\n'
-                    'Walltime (s): {}\n'
-                    'queue name: {}\n'
-                    'scheduler command: {}\n'
-                    'description: {}\n'
-                    'label: {}\n'
-                    'dos_params: {}\n'
-                    'Max. number of voronoi reruns: {}\n'
-                    'factor cluster increase: {}\n'
-                    'default cluster radius (in alat): {}\n'
-                    'min. number of atoms in screening cls: {}\n'
-                    'min. dist in DOS contour to emin/emax: {} eV\n'
-                    'threshold where DOS is zero: {} states/eV\n'
-                    'minimal distance of highest core state from EMIN: {} Ry\n'.format(self.ctx.withmpi,
-                                              self.ctx.resources, self.ctx.max_wallclock_seconds,
-                                              self.ctx.queue, self.ctx.custom_scheduler_commands,
-                                              self.ctx.description_wf, self.ctx.label_wf,
-                                              self.ctx.dos_params_dict, self.ctx.Nrerun,
-                                              self.ctx.fac_clsincrease, self.ctx.r_cls,
-                                              self.ctx.nclsmin, self.ctx.delta_e,
-                                              self.ctx.threshold_dos_zero,
-                                              self.ctx.min_dist_core_states)
-                    )
+        self.report(
+            'INFO: use the following parameter:\n'
+            'withmpi: {}\n'
+            'Resources: {}\n'
+            'Walltime (s): {}\n'
+            'queue name: {}\n'
+            'scheduler command: {}\n'
+            'description: {}\n'
+            'label: {}\n'
+            'dos_params: {}\n'
+            'Max. number of voronoi reruns: {}\n'
+            'factor cluster increase: {}\n'
+            'default cluster radius (in alat): {}\n'
+            'min. number of atoms in screening cls: {}\n'
+            'min. dist in DOS contour to emin/emax: {} eV\n'
+            'threshold where DOS is zero: {} states/eV\n'
+            'minimal distance of highest core state from EMIN: {} Ry\n'
+            .format(
+                self.ctx.withmpi,
+                self.ctx.resources, self.ctx.max_wallclock_seconds,
+                self.ctx.queue, self.ctx.custom_scheduler_commands,
+                self.ctx.description_wf, self.ctx.label_wf,
+                self.ctx.dos_params_dict, self.ctx.Nrerun,
+                self.ctx.fac_clsincrease, self.ctx.r_cls,
+                self.ctx.nclsmin, self.ctx.delta_e,
+                self.ctx.threshold_dos_zero,
+                self.ctx.min_dist_core_states
+            )
+        )
 
         # return para/vars
         self.ctx.successful = True
@@ -282,14 +323,17 @@ class kkr_startpot_wc(WorkChain):
         # get kkr and voronoi codes from input
         if self.ctx.check_dos:
             try:
-                test_and_get_codenode(self.inputs.kkr, 'kkr.kkr', use_exceptions=True)
+                test_and_get_codenode(
+                    self.inputs.kkr, 'kkr.kkr', use_exceptions=True
+                )
             except ValueError:
                 return self.exit_codes.ERROR_INVALID_KKRCODE
         try:
-            test_and_get_codenode(self.inputs.voronoi, 'kkr.voro', use_exceptions=True)
+            test_and_get_codenode(
+                self.inputs.voronoi, 'kkr.voro', use_exceptions=True
+            )
         except ValueError:
             return self.exit_codes.ERROR_INVALID_VORONOICODE
-
 
     def run_voronoi(self):
         """
@@ -307,7 +351,8 @@ class kkr_startpot_wc(WorkChain):
         structure = self.ctx.structure
         self.ctx.formula = structure.get_formula()
         label = 'voronoi calculation step {}'.format(self.ctx.iter)
-        description = '{} vornoi on {}'.format(self.ctx.description_wf, self.ctx.formula)
+        description = '{} vornoi on {}'.format(
+            self.ctx.description_wf, self.ctx.formula)
 
         voronoicode = self.inputs.voronoi
 
@@ -329,13 +374,15 @@ class kkr_startpot_wc(WorkChain):
                 # create Dict node
                 params = Dict(dict=kkrparams_default.get_dict())
                 params.label = 'Defaults for KKR parameter node'
-                params.description = 'defaults as defined in kkrparams of version {}'.format(para_version)
+                params.description = 'defaults as defined in kkrparams of version {}'.format(
+                    para_version)
             #  set last_params accordingly (used below for provenance tracking)
             self.ctx.last_params = params
 
         self.report("INFO: input params: {}".format(params.get_dict()))
 
-        # check if RCLUSTZ is set and use setting from wf_parameters instead (calls update_params_wf to keep track of provenance)
+        # check if RCLUSTZ is set and use setting from wf_parameters instead
+        # (calls update_params_wf to keep track of provenance)
         updated_params = False
         update_list = []
         kkr_para = kkrparams()
@@ -362,21 +409,22 @@ class kkr_startpot_wc(WorkChain):
         if 'RMAX' in set_vals:
             update_list.append('RMAX')
             rmax_input = params.get_dict()['RMAX']
-        elif self.ctx.check_dos: # add only if doscheck is done
+        elif self.ctx.check_dos:  # add only if doscheck is done
             updated_params = True
             update_list.append('RMAX')
             rmax_input = default_values.get('RMAX')
         if 'GMAX' in set_vals:
             update_list.append('GMAX')
             gmax_input = params.get_dict()['GMAX']
-        elif self.ctx.check_dos: # add only if doscheck is done
+        elif self.ctx.check_dos:  # add only if doscheck is done
             updated_params = True
             update_list.append('GMAX')
             gmax_input = default_values.get('GMAX')
         # check if any mandatory keys are not set and set them with the default values if missing in input parameters
         for key, value in default_values.items():
             if key not in update_list and key not in set_vals:
-                self.report("INFO: setting {} to default value {}".format(key, value))
+                self.report(
+                    "INFO: setting {} to default value {}".format(key, value))
                 kkr_para.set_value(key, value)
 
         # check if Fermi lavel should be set with input value
@@ -387,7 +435,7 @@ class kkr_startpot_wc(WorkChain):
         skip_voro = False
         if self.ctx.iter > 1:
             if (self.ctx.dos_check_fail_reason == 'EMIN too high' or
-                self.ctx.dos_check_fail_reason == 'core state too close'):
+                    self.ctx.dos_check_fail_reason == 'core state too close'):
                 # decrease emin  by self.ctx.delta_e
                 emin_old = self.ctx.dos_params_dict['emin']
                 eV2Ry = 1./get_Ry2eV()
@@ -402,19 +450,23 @@ class kkr_startpot_wc(WorkChain):
             # set values that are updated
             if 'RCLUSTZ' in update_list:
                 kkr_para.set_value('RCLUSTZ', self.ctx.r_cls)
-                self.report("INFO: setting RCLUSTZ to {}".format(self.ctx.r_cls))
+                self.report(
+                    "INFO: setting RCLUSTZ to {}".format(self.ctx.r_cls))
             if 'EMIN' in update_list:
                 kkr_para.set_value('EMIN', emin_new)
                 self.report("INFO: setting EMIN to {}".format(emin_new))
             if 'RMAX' in update_list:
                 kkr_para.set_value('RMAX', rmax_input)
-                self.report("INFO: setting RMAX to {} (needed for DOS check with KKRcode)".format(rmax_input))
+                self.report(
+                    "INFO: setting RMAX to {} (needed for DOS check with KKRcode)".format(rmax_input))
             if 'GMAX' in update_list:
                 kkr_para.set_value('GMAX', gmax_input)
-                self.report("INFO: setting GMAX to {} (needed for DOS check with KKRcode)".format(gmax_input))
+                self.report(
+                    "INFO: setting GMAX to {} (needed for DOS check with KKRcode)".format(gmax_input))
             if 'ef_set' in update_list:
                 kkr_para.set_value('EFSET', self.ctx.ef_set)
-                self.report("INFO: setting Fermi level of stating potential to {}".format(self.ctx.ef_set))
+                self.report(
+                    "INFO: setting Fermi level of stating potential to {}".format(self.ctx.ef_set))
 
             updatenode = Dict(dict=kkr_para.get_dict())
             updatenode.description = 'changed values: {}'.format(update_list)
@@ -427,33 +479,36 @@ class kkr_startpot_wc(WorkChain):
                 updatenode.label = 'updated params: {}'.format(update_list)
                 # also keep track of last voronoi output if that has been used
                 voro_out = self.ctx.voro_calc.outputs.output_parameters
-                params = update_voro_input(self.ctx.last_params, updatenode, voro_out)
+                params = update_voro_input(
+                    self.ctx.last_params, updatenode, voro_out)
                 self.ctx.last_params = params
 
         # run voronoi step
         if not skip_voro:
-            options = {'queue_name' : self.ctx.queue,
-                       'resources': self.ctx.resources,
-                       'max_wallclock_seconds' : self.ctx.max_wallclock_seconds,
-                       'custom_scheduler_commands' : self.ctx.custom_scheduler_commands}
+            options = {
+                'queue_name': self.ctx.queue,
+                'resources': self.ctx.resources,
+                'max_wallclock_seconds': self.ctx.max_wallclock_seconds,
+                'custom_scheduler_commands': self.ctx.custom_scheduler_commands
+            }
 
             if 'structure' in self.inputs:
                 # normal mode starting from structure
-                builder = get_inputs_voronoi(voronoicode, structure, options, label, description, params=params)
+                builder = get_inputs_voronoi(
+                    voronoicode, structure, options, label, description, params=params)
             else:
                 # parent_KKR mode
-                builder = get_inputs_voronoi(voronoicode, None, options, label, description, params=params, parent_KKR=self.inputs.parent_KKR)
+                builder = get_inputs_voronoi(
+                    voronoicode, None, options, label, description, params=params, parent_KKR=self.inputs.parent_KKR)
             if 'startpot_overwrite' in self.inputs:
                 builder.potential_overwrite = self.inputs.startpot_overwrite
             self.report('INFO: run voronoi step {}'.format(self.ctx.iter))
             future = self.submit(builder)
 
-
             # return remote_voro (passed to dos calculation as input)
             return ToContext(voro_calc=future)
-        else:
-            self.report("INFO: skipping voronoi calculation (do DOS run with different emin only)")
-
+        self.report(
+            "INFO: skipping voronoi calculation (do DOS run with different emin only)")
 
     def check_voronoi(self):
         """
@@ -463,16 +518,20 @@ class kkr_startpot_wc(WorkChain):
         """
 
         # check wether or not calculation was taked from cached node
-        caching_info = "INFO: cache_source of voro calc node: {}".format(self.ctx.voro_calc.get_cache_source())
+        caching_info = "INFO: cache_source of voro calc node: {}".format(
+            self.ctx.voro_calc.get_cache_source())
         print(caching_info)
         self.report(caching_info)
 
-        #do some checks with the voronoi output (finally sets self.ctx.voro_ok)
+        # do some checks with the voronoi output (finally sets self.ctx.voro_ok)
         self.ctx.voro_ok = True
 
-        #TODO: print some info if voro_calc does not finish ok (need to find the reason for it)
+        # TODO: print some info if voro_calc does not finish ok (need to find the reason for it)
 
-        print('check_voro_calc', self.ctx.voro_calc, self.ctx.voro_calc.is_finished_ok)
+        print(
+            'check_voro_calc', self.ctx.voro_calc,
+            self.ctx.voro_calc.is_finished_ok
+        )
         from pprint import pprint
         pprint(self.ctx.voro_calc.attributes)
 
@@ -487,7 +546,8 @@ class kkr_startpot_wc(WorkChain):
         # check if parser returned some error
         voro_parser_errors = self.ctx.voro_calc.res.parser_errors
         if voro_parser_errors != []:
-            self.report("ERROR: Voronoi Parser returned Error(s): {}".format(voro_parser_errors))
+            self.report("ERROR: Voronoi Parser returned Error(s): {}".format(
+                voro_parser_errors))
             self.ctx.voro_ok = False
             self.ctx.exit_code = self.exit_codes.ERROR_VORONOI_PARSING_FAILED
             return False
@@ -501,18 +561,27 @@ class kkr_startpot_wc(WorkChain):
             tmp_ncls = clsinfo['cluster_info_atoms'][icls]['sites']
             if tmp_ncls < nclsmin_last_calc:
                 nclsmin_last_calc = tmp_ncls
-        self.report("INFO: number of atoms in smallest cluster: {}".format(nclsmin_last_calc))
+        self.report(
+            "INFO: number of atoms in smallest cluster: {}"
+            .format(nclsmin_last_calc)
+        )
 
         if self.ctx.nclsmin > nclsmin_last_calc or ncls < 1:
-            self.report("WARNING: minimal cluster smaller than threshold of {}".format(self.ctx.nclsmin))
+            self.report(
+                "WARNING: minimal cluster smaller than threshold of {}"
+                .format(self.ctx.nclsmin)
+            )
             self.ctx.voro_ok = False
 
         # check radii condition
         radii = self.ctx.voro_calc.res.radii_atoms_group
         r_ratio1 = radii[0]['rout_over_dist_nn']
         r_ratio2 = radii[0]['rmt0_over_rout']
-        if r_ratio1>=100. or r_ratio2>=100.:
-            self.report("ERROR: radii information inconsistent: Rout/dis_NN={}, RMT0/Rout={}".format(r_ratio1, r_ratio2))
+        if r_ratio1 >= 100. or r_ratio2 >= 100.:
+            self.report(
+                "ERROR: radii information inconsistent: Rout/dis_NN={}, RMT0/Rout={}"
+                .format(r_ratio1, r_ratio2)
+            )
             self.ctx.voro_ok = False
             self.ctx.exit_code = self.exit_codes.ERROR_VORONOI_INVALID_RADII
             return False
@@ -522,10 +591,17 @@ class kkr_startpot_wc(WorkChain):
         eV2Ry = 1./get_Ry2eV()
         emin_dos = self.ctx.dos_params_dict['emin']
         emin_out = self.ctx.voro_calc.res.emin
-        self.report("INFO: emin dos input: {}, emin voronoi output: {}".format(emin_dos, emin_out))
+        self.report(
+            "INFO: emin dos input: {}, emin voronoi output: {}"
+            .format(emin_dos, emin_out)
+        )
         if emin_out - self.ctx.delta_e*eV2Ry < emin_dos:
-            self.ctx.dos_params_dict['emin'] = emin_out - self.ctx.delta_e*eV2Ry
-            self.report("INFO: emin ({} Ry) - delta_e ({} Ry) smaller than emin ({} Ry) of dos input. Setting automatically to {} Ry".format(emin_out, self.ctx.delta_e*eV2Ry,  emin_dos, emin_out-self.ctx.delta_e*eV2Ry))
+            self.ctx.dos_params_dict['emin'] = emin_out - \
+                self.ctx.delta_e*eV2Ry
+            self.report(
+                "INFO: emin ({} Ry) - delta_e ({} Ry) smaller than emin ({} Ry) of dos input. Setting automatically to {} Ry"
+                .format(emin_out, self.ctx.delta_e*eV2Ry,  emin_dos, emin_out-self.ctx.delta_e*eV2Ry)
+            )
 
         ret = self.ctx.voro_calc.outputs.retrieved
         if 'potential_overwrite' in self.ctx.voro_calc.inputs:
@@ -541,18 +617,25 @@ class kkr_startpot_wc(WorkChain):
                 potfile_path = f.name
         self.ctx.efermi = get_ef_from_potfile(potfile_path)
         emax = self.ctx.dos_params_dict['emax']
-        self.report("INFO: emax dos input: {}, efermi voronoi output: {}".format(emax, self.ctx.efermi))
+        self.report("INFO: emax dos input: {}, efermi voronoi output: {}".format(
+            emax, self.ctx.efermi))
         if emax < self.ctx.efermi + self.ctx.delta_e*eV2Ry:
-            self.ctx.dos_params_dict['emax'] = self.ctx.efermi + self.ctx.delta_e*eV2Ry
-            self.report("INFO: self.ctx.efermi ({} Ry) + delta_e ({} Ry) larger than emax ({} Ry). Setting automatically to {} Ry".format(self.ctx.efermi, self.ctx.delta_e*eV2Ry, emax, self.ctx.efermi+self.ctx.delta_e*eV2Ry))
+            self.ctx.dos_params_dict['emax'] = self.ctx.efermi + \
+                self.ctx.delta_e*eV2Ry
+            self.report(
+                "INFO: self.ctx.efermi ({} Ry) + delta_e ({} Ry) larger than emax ({} Ry). Setting automatically to {} Ry"
+                .format(self.ctx.efermi, self.ctx.delta_e*eV2Ry, emax, self.ctx.efermi+self.ctx.delta_e*eV2Ry)
+            )
 
-        #TODO implement other checks?
+        # TODO implement other checks?
 
-        self.report("INFO: Voronoi check finished with result: {}".format(self.ctx.voro_ok))
+        self.report(
+            "INFO: Voronoi check finished with result: {}"
+            .format(self.ctx.voro_ok)
+        )
 
         # finally return result of check
         return self.ctx.voro_ok
-
 
     def do_iteration_check(self):
         """
@@ -575,24 +658,24 @@ class kkr_startpot_wc(WorkChain):
         else:
             return True
 
-
     def get_dos(self):
         """
         call to dos sub workflow passing the appropriate input and submitting the calculation
         """
         if self.ctx.check_dos:
-            self.report("INFO: Doing DOS calculation in iteration {}".format(self.ctx.iter))
+            self.report(
+                "INFO: Doing DOS calculation in iteration {}".format(self.ctx.iter))
             # take subset of input and prepare parameter node for dos workflow
             options_dict = {
-                'queue_name' : self.ctx.queue,
+                'queue_name': self.ctx.queue,
                 'resources': self.ctx.resources,
-                'max_wallclock_seconds' : self.ctx.max_wallclock_seconds,
-                'withmpi' : self.ctx.withmpi,
-                'custom_scheduler_commands' : self.ctx.custom_scheduler_commands
-                }
+                'max_wallclock_seconds': self.ctx.max_wallclock_seconds,
+                'withmpi': self.ctx.withmpi,
+                'custom_scheduler_commands': self.ctx.custom_scheduler_commands
+            }
             options_node = Dict(dict=options_dict)
             options_node.label = 'options'
-            wfdospara_dict = {'dos_params' : self.ctx.dos_params_dict}
+            wfdospara_dict = {'dos_params': self.ctx.dos_params_dict}
             wfdospara_node = Dict(dict=wfdospara_dict)
             wfdospara_node.label = 'DOS params'
             wfdospara_node.description = 'DOS parameters passed from kkr_startpot_wc input to DOS sub-workflow'
@@ -602,7 +685,7 @@ class kkr_startpot_wc(WorkChain):
             print('VORO_CALC ok?', self.ctx.voro_calc.is_finished_ok)
             print('OUTGOINGS:', self.ctx.voro_calc.get_outgoing().all())
             remote = self.ctx.voro_calc.outputs.remote_folder
-            wf_label= 'DOS calculation'
+            wf_label = 'DOS calculation'
             wf_desc = 'subworkflow of a DOS calculation that perform a singe-shot KKR calc.'
 
             builder = kkr_dos_wc.get_builder()
@@ -616,7 +699,6 @@ class kkr_startpot_wc(WorkChain):
             future = self.submit(builder)
 
             return ToContext(doscal=future)
-
 
     def check_dos(self):
         """
@@ -640,7 +722,8 @@ class kkr_startpot_wc(WorkChain):
                     return self.exit_codes.ERROR_DOSRUN_FAILED
 
                 if dos_outdict['list_of_errors'] != []:
-                    self.report("ERROR: DOS wf output contains errors: {}".format(dos_outdict['list_of_errors']))
+                    self.report("ERROR: DOS wf output contains errors: {}".format(
+                        dos_outdict['list_of_errors']))
                     self.ctx.doscheck_ok = False
                     return self.exit_codes.ERROR_DOSRUN_FAILED
             except:
@@ -656,53 +739,60 @@ class kkr_startpot_wc(WorkChain):
                 natom = len(self.ctx.voro_calc.res.shapes)
                 nspin = dos_outdict['nspin']
 
-                ener = dosdata.get_x()[1] # shape= natom*nspin, nept
-                totdos = dosdata.get_y()[0][1] # shape= natom*nspin, nept
+                ener = dosdata.get_x()[1]  # shape= natom*nspin, nept
+                totdos = dosdata.get_y()[0][1]  # shape= natom*nspin, nept
 
                 if len(ener) != nspin*natom:
-                    self.report("ERROR: DOS output shape does not fit nspin, natom information: len(energies)={}, natom={}, nspin={}".format(len(ener), natom, nspin))
+                    self.report("ERROR: DOS output shape does not fit nspin, natom information: len(energies)={}, natom={}, nspin={}".format(
+                        len(ener), natom, nspin))
                     self.ctx.doscheck_ok = False
                     return self.exit_codes.ERROR_DOSRUN_FAILED
 
                 # deal with snpin==1 or 2 cases and check negtive DOS
                 for iatom in range(natom//nspin):
                     for ispin in range(nspin):
-                        x, y = ener[iatom*nspin+ispin], totdos[iatom*nspin+ispin]
+                        x, y = ener[iatom*nspin +
+                                    ispin], totdos[iatom*nspin+ispin]
                         if nspin == 2 and ispin == 0:
                             y = -y
                         if y.min() < 0:
-                            self.report("INFO: negative DOS value found in (atom, spin)=({},{}) at iteration {}".format(iatom, ispin, self.ctx.iter))
+                            self.report("INFO: negative DOS value found in (atom, spin)=({},{}) at iteration {}".format(
+                                iatom, ispin, self.ctx.iter))
                             dos_ok = False
                             self.ctx.dos_check_fail_reason = 'DOS negative'
 
                 # check starting EMIN
                 dosdata_interpol = doscal.outputs.dos_data_interpol
 
-                ener = dosdata_interpol.get_x()[1] # shape= natom*nspin, nept
-                totdos = dosdata_interpol.get_y()[0][1] # shape= natom*nspin, nept [0] for total DOS
+                ener = dosdata_interpol.get_x()[1]  # shape= natom*nspin, nept
+                # shape= natom*nspin, nept [0] for total DOS
+                totdos = dosdata_interpol.get_y()[0][1]
                 Ry2eV = get_Ry2eV()
 
                 for iatom in range(natom//nspin):
                     for ispin in range(nspin):
-                        x, y = ener[iatom*nspin+ispin], totdos[iatom*nspin+ispin]
+                        x, y = ener[iatom*nspin +
+                                    ispin], totdos[iatom*nspin+ispin]
                         xrel = abs(x-(emin-self.ctx.efermi)*Ry2eV)
-                        mask_emin = where(xrel==xrel.min())
+                        mask_emin = where(xrel == xrel.min())
                         ymin = abs(y[mask_emin])
                         if ymin > self.ctx.threshold_dos_zero:
-                            self.report("INFO: DOS at emin not zero! {}>{}".format(ymin,self.ctx.threshold_dos_zero))
+                            self.report("INFO: DOS at emin not zero! {}>{}".format(
+                                ymin, self.ctx.threshold_dos_zero))
                             dos_ok = False
                             self.ctx.dos_check_fail_reason = 'EMIN too high'
             except AttributeError:
                 dos_ok = False
 
             # check for position of core states
-            ecore_all = self.ctx.voro_calc.res.core_states_group.get('energy_highest_lying_core_state_per_atom')
+            ecore_all = self.ctx.voro_calc.res.core_states_group.get(
+                'energy_highest_lying_core_state_per_atom')
             ecore_max = max([ec for ec in ecore_all if ec is not None])
             self.report("INFO: emin= {} Ry".format(emin))
             self.report("INFO: highest core state= {} Ry".format(ecore_max))
             if ecore_max is not None:
                 # comment this out since KkrCalculation can now take out core states on its own
-                #if ecore_max >= emin:
+                # if ecore_max >= emin:
                 #    error = "ERROR: contour contains core states!!!"
                 #    self.report(error)
                 #    dos_ok = False
@@ -710,7 +800,7 @@ class kkr_startpot_wc(WorkChain):
                 #    # TODO maybe some logic to automatically deal with this issue?
                 #    # for now stop if this case occurs
                 #    return self.exit_codes.ERROR_CORE_STATES_IN_CONTOUR
-                #elif abs(ecore_max-emin) < self.ctx.min_dist_core_states:
+                # elif abs(ecore_max-emin) < self.ctx.min_dist_core_states:
                 if abs(ecore_max-emin) < self.ctx.min_dist_core_states:
                     error = "ERROR: core states too close to energy contour start!!!"
                     self.report(error)
@@ -719,16 +809,15 @@ class kkr_startpot_wc(WorkChain):
                 else:
                     self.report('INFO: DOS check successful')
 
-            #TODO check for semi-core-states
+            # TODO check for semi-core-states
 
-            #TODO check rest of dos_output node if something seems important to check
+            # TODO check rest of dos_output node if something seems important to check
 
         # finally set the value in context (needed in do_iteration_check)
         if dos_ok:
             self.ctx.doscheck_ok = True
         else:
             self.ctx.doscheck_ok = False
-
 
     def return_results(self):
         """
@@ -751,17 +840,20 @@ class kkr_startpot_wc(WorkChain):
         try:
             voro_calc = self.ctx.voro_calc.outputs.output_parameters
         except NotExistent:
-            self.report("ERROR: Results ParameterNode of voronoi (pk={}) not found".format(voro_pk))
+            self.report(
+                "ERROR: Results ParameterNode of voronoi (pk={}) not found".format(voro_pk))
             voro_calc = None
         try:
             voro_remote = self.ctx.voro_calc.outputs.remote_folder
         except NotExistent:
-            self.report("ERROR: RemoteFolderNode of voronoi (pk={}) not found".format(voro_pk))
+            self.report(
+                "ERROR: RemoteFolderNode of voronoi (pk={}) not found".format(voro_pk))
             voro_remote = None
         try:
             last_params = self.ctx.last_params
         except AttributeError:
-            self.report("ERROR: Input ParameterNode of voronoi (pk={}) not found".format(voro_pk))
+            self.report(
+                "ERROR: Input ParameterNode of voronoi (pk={}) not found".format(voro_pk))
             last_params = None
 
         # dos calculation outputs
@@ -844,16 +936,16 @@ class kkr_startpot_wc(WorkChain):
 
         self.report("INFO: done with kkr_startpot workflow!\n")
 
-
     def find_cluster_radius_alat(self):
         """
         Find an estimate for the cluster radius that comes close to having nclsmin atoms in the cluster.
         """
 
         # some settings
-        nbins = 10000 # binning for find_cluster radius (higher=more accurate)
-        ncls_target = self.ctx.nclsmin/1.15 # make target number smaller to not overshoot in the beginning
-                                            # the tradeoff is to have more voronoi calculations in the database
+        nbins = 10000  # binning for find_cluster radius (higher=more accurate)
+        # make target number smaller to not overshoot in the beginning
+        ncls_target = self.ctx.nclsmin/1.15
+        # the tradeoff is to have more voronoi calculations in the database
         structure = self.ctx.structure
 
         # first find cluster radius in Ang. units
@@ -876,7 +968,6 @@ class kkr_startpot_wc(WorkChain):
 
         # return cluster radius
         return r_cls_alat
-
 
     def error_handler(self):
         """Capture errors raised in validate_input"""

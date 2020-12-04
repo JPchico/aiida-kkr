@@ -159,29 +159,35 @@ class KkrParser(Parser):
 
         # TODO job title, compound description
 
-        success, msg_list, out_dict = parse_kkr_outputfile(out_dict, outfile,
-                                                           outfile_0init, outfile_000,
-                                                           timing_file, potfile_out,
-                                                           nonco_out_file, outfile_2,
-                                                           skip_readin=skip_mode, debug=debug)
+        success, msg_list, out_dict = parse_kkr_outputfile(
+            out_dict, outfile,
+            outfile_0init, outfile_000,
+            timing_file, potfile_out,
+            nonco_out_file, outfile_2,
+            skip_readin=skip_mode, debug=debug
+        )
 
         # try to parse with other combinations of files to minimize parser errors
         if self.icrit != 0:
             self.logger.info('msg_list0: {}'.format(msg_list))
             # try second combination of files
             out_dict2 = out_dict.copy()
-            success2, msg_list2, out_dict2 = parse_kkr_outputfile(out_dict2, outfile_2,
-                                                                  outfile_0init, outfile_000, timing_file, potfile_out, nonco_out_file,
-                                                                  outfile_2, skip_readin=skip_mode)
+            success2, msg_list2, out_dict2 = parse_kkr_outputfile(
+                out_dict2, outfile_2,
+                outfile_0init, outfile_000, timing_file, potfile_out, nonco_out_file,
+                outfile_2, skip_readin=skip_mode
+            )
             self.logger.info('msg_list1: {}'.format(msg_list2))
             if len(msg_list2) < len(msg_list):  # overwrite parser outputs if fewer errors
                 self.logger.info('take output of parser run 1')
                 success, msg_list, out_dict = success2, msg_list2, out_dict2
             # try third combination of files
             out_dict2 = out_dict.copy()
-            success2, msg_list2, out_dict2 = parse_kkr_outputfile(out_dict2, outfile_000,
-                                                                  outfile_0init, outfile_000, timing_file, potfile_out, nonco_out_file,
-                                                                  outfile_2, skip_readin=skip_mode)
+            success2, msg_list2, out_dict2 = parse_kkr_outputfile(
+                out_dict2, outfile_000,
+                outfile_0init, outfile_000, timing_file, potfile_out, nonco_out_file,
+                outfile_2, skip_readin=skip_mode
+            )
             self.logger.info('msg_list2: {}'.format(msg_list2))
             if len(msg_list2) < len(msg_list):  # overwrite parser outputs if fewer errors
                 self.logger.info('take output of parser run 2')
@@ -223,8 +229,9 @@ class KkrParser(Parser):
         The information is completely parsed (i.e. in outdict of calculation) 
         and keeping the file would just be a duplication.
         """
-        files_to_delete = [KkrCalculation._POTENTIAL,
-                           KkrCalculation._SHAPEFUN]
+        files_to_delete = [
+            KkrCalculation._POTENTIAL, KkrCalculation._SHAPEFUN
+        ]
         for fileid in files_to_delete:
             if fileid in self.retrieved.list_object_names():
                 self.retrieved.delete_object(fileid, force=True)

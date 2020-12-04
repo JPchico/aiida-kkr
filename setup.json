@@ -49,18 +49,19 @@
             "kkr.kkrimporter = aiida_kkr.calculations.kkrimporter:KkrImporterCalculation",
             "kkr.voro = aiida_kkr.calculations.voro:VoronoiCalculation",
             "kkr.kkrimp = aiida_kkr.calculations.kkrimp:KkrimpCalculation"
-            ],
+        ],
         "aiida.parsers": [
             "kkr.voroparser = aiida_kkr.parsers.voro:VoronoiParser",
             "kkr.kkrparser = aiida_kkr.parsers.kkr:KkrParser",
             "kkr.kkrimporterparser = aiida_kkr.parsers.kkrimporter:KkrImporterParser",
             "kkr.kkrimpparser = aiida_kkr.parsers.kkrimp:KkrimpParser"
-            ],
+        ],
         "aiida.data": [
             "kkr.kkrstructure = aiida_kkr.data.kkrstructure:KkrstructureData"
-            ],
-        "aiida.workflows":[
+        ],
+        "aiida.workflows": [
             "kkr.scf = aiida_kkr.workflows.kkr_scf:kkr_scf_wc",
+            "kkr.base = aiida_kkr.workflows.base_kkr:BaseKKRWorkchain",
             "kkr.dos = aiida_kkr.workflows.dos:kkr_dos_wc",
             "kkr.eos = aiida_kkr.workflows.eos:kkr_eos_wc",
             "kkr.startpot = aiida_kkr.workflows.voro_start:kkr_startpot_wc",
@@ -71,9 +72,9 @@
             "kkr.imp_sub = aiida_kkr.workflows.kkr_imp_sub:kkr_imp_sub_wc",
             "kkr.imp_dos = aiida_kkr.workflows.kkr_imp_dos:kkr_imp_dos_wc",
             "kk.decimation = aiida_kkr.workflows._decimation:kkr_decimation_wc"
-	    ],
+        ],
         "console_scripts": [
             "aiida-kkr = aiida_kkr.cmdline:cmd_root"
-            ]
+        ]
     }
 }
