@@ -66,7 +66,8 @@ def main():
     # calculation
     kkr_calculation_parameters = generate_kkr_parameters(
         input_parameters={
-            'LMAX': 2, 'RMAX': 7, 'GMAX': 65, 'NSPIN': 2, 'RCLUSTZ': 1.9
+            'LMAX': 2, 'RMAX': 7, 'GMAX': 65, 'NSPIN': 2, 'RCLUSTZ': 1.9,
+            "RUNOPT": ["NEWSOSOL"], "R_LOG": 0.50
         }
     )
 
