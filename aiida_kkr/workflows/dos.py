@@ -6,8 +6,9 @@ some helper methods to do so with AiiDA
 """
 from masci_tools.io.kkr_params import kkrparams
 from aiida import orm
-from aiida.engine import WorkChain, if_, ToContext
-from aiida.engine import submit
+from aiida.engine import WorkChain, if_, ToContext, calcfunction
+from aiida.common.extendeddicts import AttributeDict
+from aiida.common.exceptions import InputValidationError
 from aiida_kkr.tools.common_workfunctions import (
     test_and_get_codenode,
     get_parent_paranode,
@@ -16,8 +17,6 @@ from aiida_kkr.tools.common_workfunctions import (
 )
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
-from aiida.engine import CalcJob, calcfunction
-from aiida.common.exceptions import InputValidationError
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 from aiida_kkr.workflows.bs import set_energy_params
 
@@ -44,31 +43,31 @@ class kkr_dos_wc(WorkChain):
     _workflowversion = __version__
     _wf_label = 'kkr_dos_wc'
     _wf_description = 'Workflow for a KKR dos calculation starting either from a structure with automatic voronoi calculation or a valid RemoteData node of a previous calculation.'
-    _wf_default = {
-        'nepts': 96,  # number of points in contour
-        'tempr': 200.,  # K, smearing temperature
-        'emin': -10.,  # eV, rel to EF, start of energy contour
-        'emax': 5.,  # eV       end of energy contour
-        'kmesh': [30, 30, 30],  # kmesh for DOS calculation (typically higher than in scf contour)
-        'RCLUSTZ': None,  # cluster radiu, only used if a value is set
-    }
-    _options_default = {
-        'queue_name': '',  # Queue name to submit jobs to
-        # resources to allowcate for the job
-        'resources': {
-            'num_machines': 1
-        },
-        # walltime after which the job gets killed (gets parsed to KKR)
-        'max_wallclock_seconds': 60 * 60,
-        'withmpi': True,  # execute KKR with mpi or without
-        'custom_scheduler_commands': '',  # some additional scheduler commands
-    }
+    _wf_default = AttributeDict()
+    _wf_default.nepts = 96  # number of points in contour
+    _wf_default.tempr = 200  # K, smearing temperature
+    _wf_default.emin = -10  # eV, rel to EF, start of energy contour
+    _wf_default.emax = 5  # eV       end of energy contour
+    _wf_default.kmesh = [30, 30, 30]  # kmesh for DOS calculation (typically higher than in scf contour)
+    _wf_default.RCLUSTZ = None  # cluster radius, only used if a value is set
+
+    _options_default = AttributeDict()
+    # Queue name to submit jobs to
+    _options_default.queue_name = ''
+    # walltime after which the job gets killed (gets parsed to KKR)}
+    _options_default.max_wallclock_seconds = 60 * 60
+    # some additional scheduler commands
+    _options_default.custom_scheduler_commands = ''
+    # execute KKR with mpi or without
+    _options_default.withmpi = True
+    # resources to allowcate for the job
+    _options_default.resources = AttributeDict()
+    _options_default.resources.num_machines = 1
 
     # intended to guide user interactively in setting up a valid wf_params node
     @classmethod
     def get_wf_defaults(cls, silent=False):
-        """
-        Print and return _wf_defaults dictionary.
+        """Print and return _wf_defaults dictionary.
 
         Can be used to easily create set of wf_parameters.
         returns _wf_defaults
@@ -349,6 +348,8 @@ class kkr_dos_wc(WorkChain):
         paranode_dos = update_params_wf(self.ctx.input_params_KKR, updatenode)
         self.ctx.dos_kkrparams = paranode_dos
 
+        return None
+
     def get_dos(self):
         """
         submit a dos calculation and interpolate result if returns complete
@@ -468,6 +469,8 @@ class kkr_dos_wc(WorkChain):
 
         self.report('INFO: done with DOS workflow!\n')
 
+        return None
+
 
 @calcfunction
 def parse_dosfiles(dos_retrieved):
@@ -496,7 +499,7 @@ def parse_dosfiles(dos_retrieved):
     ylists = [[], [], []]
     for line, _name in enumerate(name):
         ylists[0].append(dos[:, :, 1 + line])
-        ylists[1].append('dos {}'.format(_name))
+        ylists[1].append(f'dos {_name}')
         ylists[2].append('states/eV')
     dosnode.set_y(ylists[0], ylists[1], ylists[2])
     dosnode.label = 'dos_data'
@@ -508,7 +511,7 @@ def parse_dosfiles(dos_retrieved):
     ylists = [[], [], []]
     for line, _name in enumerate(name):
         ylists[0].append(dos_int[:, :, 1 + line])
-        ylists[1].append('interpolated dos {}'.format(_name))
+        ylists[1].append(f'interpolated dos {_name}')
         ylists[2].append('states/eV')
     dosnode2.set_y(ylists[0], ylists[1], ylists[2])
     dosnode2.label = 'dos_interpol_data'

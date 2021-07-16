@@ -116,6 +116,7 @@ ENV/
 # VScode
 .idea/
 aiida_kkr/.vscode/
+.vscode/*
 
 # testing files (test runs locally)
 aiida_kkr/tests/.aiida/

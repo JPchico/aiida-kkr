@@ -143,7 +143,15 @@ class kkr_eos_wc(WorkChain):
             would normally be written in the inputcard.
             """
         )
-
+        spec.input(
+            'verbose',
+            valid_type=orm.Bool,
+            required=False,
+            default=lambda: orm.Bool(False),
+            help="""
+            Adjust if extra information should be displayed to screen.
+            """
+        )
         # define output nodes
         spec.output(
             'eos_results',
@@ -375,18 +383,18 @@ class kkr_eos_wc(WorkChain):
             voro_params = out_wc.outputs.last_params_voronoi
             smallest_voro_remote = out_wc.outputs.last_voronoi_remote
             smallest_voro_results = out_wc.outputs.last_voronoi_results
-            vorostart_success = res.get_dict()['successful']
+            vorostart_success = res.dict.successful
         except AttributeError:
             vorostart_success = False
 
         if vorostart_success:
             rmt = []
-            radii = smallest_voro_results.get_dict()['radii_atoms_group']
+            radii = smallest_voro_results.dict.radii_atoms_group
             for rad_iatom in radii:
                 if 'rmt0' in list(rad_iatom.keys()):
                     rmt.append(rad_iatom['rmt0'])
             # needs to be multiplied by alat in atomic units!
-            rmtcore_min = np.array(rmt) * smallest_voro_results.get_dict().get('alat')
+            rmtcore_min = np.array(rmt) * smallest_voro_results.dict.alat
             self.report(f'INFO: extracted rmtcore_min ({rmtcore_min})')
         else:
             return self.exit_codes.ERROR_VOROSTART_NOT_SUCCESSFUL  # pylint: disable=no-member

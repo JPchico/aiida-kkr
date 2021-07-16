@@ -130,20 +130,21 @@ class VoronoiCalculation(CalcJob):
             # check if parent is either Voronoi or previous KKR calculation
             overwrite_potential, parent_calc = self._check_valid_parent(parent_calc_folder)
 
-            #cross check if no structure was given and extract structure from parent
+            # Cross check if no structure was given and extract structure
+            # from parent
             if found_structure and not vca_structure:
                 raise InputValidationError(
                     'parent_KKR and structure found in input. '
                     'Can only use either parent_KKR or structure in input.'
                 )
+            structure_remote_KKR, voro_parent = self.find_parent_structure(parent_calc)
+            if not vca_structure:
+                structure = structure_remote_KKR
             else:
-                structure_remote_KKR, voro_parent = self.find_parent_structure(parent_calc)
-                if not vca_structure:
-                    structure = structure_remote_KKR
-                else:
-                    # check consistency of input vca structure and structure  from remote KKR folder
-                    # TODO check consistency
-                    pass
+                # check consistency of input vca structure and structure
+                # from remote KKR folder
+                # TODO check consistency
+                pass
         else:
             overwrite_potential = False
             if not found_structure:
@@ -183,8 +184,8 @@ class VoronoiCalculation(CalcJob):
                     vca_structure=vca_structure,
                     use_input_alat=use_alat_input,
                 )
-            except ValueError as e:
-                raise InputValidationError('Input Dict not consistent: {}'.format(e))
+            except ValueError as _error:
+                raise InputValidationError(f'Input Dict not consistent: {_error}')
 
         # Decide what files to copy
         local_copy_list = []
@@ -221,8 +222,8 @@ class VoronoiCalculation(CalcJob):
         ]
 
         # pass on overwrite potential if this was given in input
-        # (KkrCalculation checks if this file is there and takes this file instead of _OUT_POTENTIAL_voronoi
-        #  if given)
+        # (KkrCalculation checks if this file is there and takes this file
+        # instead of _OUT_POTENTIAL_voronoi if given)
         if overwrite_potential:
             calcinfo.retrieve_list += [self._POTENTIAL_IN_OVERWRITE]
         else:
@@ -252,11 +253,10 @@ class VoronoiCalculation(CalcJob):
                 'calculation{}, while it should have a single parent'
                 ''.format(n_parents, '' if n_parents == 0 else 's')
             )
-        else:
-            parent_calc = parent_calcs.first().node
-            overwrite_pot = True
+        parent_calc = parent_calcs.first().node
+        overwrite_pot = True
 
-        if ((not self._is_KkrCalc(parent_calc))):
+        if not self._is_KkrCalc(parent_calc):
             raise ValueError('Parent calculation must be a KkrCalculation')
 
         return overwrite_pot, parent_calc
@@ -338,7 +338,7 @@ class VoronoiCalculation(CalcJob):
     @classmethod
     def find_parent_structure(self, parent_folder):
         """
-        Find the Structure node recuresively in chain of parent calculations (structure node is input to voronoi calculation)
+        Find the Structure node recursively in chain of parent calculations (structure node is input to voronoi calculation)
         """
         iiter = 0
         Nmaxiter = 1000

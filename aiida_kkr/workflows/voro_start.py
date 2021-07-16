@@ -10,6 +10,7 @@ from masci_tools.io.common_functions import get_ef_from_potfile, get_Ry2eV
 from masci_tools.io.common_functions import get_alat_from_bravais
 from aiida import orm
 from aiida.engine import WorkChain, while_, if_, ToContext, calcfunction
+from aiida.common.extendeddicts import AttributeDict
 from aiida.common.exceptions import NotExistent
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida_kkr.workflows.dos import kkr_dos_wc
@@ -47,29 +48,40 @@ class kkr_startpot_wc(WorkChain):
     """
 
     _workflowversion = __version__
-    _wf_default = {
-        'num_rerun': 4,  # number of times voronoi+starting dos+checks is rerun to ensure non-negative DOS etc
-        'fac_cls_increase':
-        1.15,  # alat         # factor by which the screening cluster is increased each iteration (up to num_rerun times)
-        'natom_in_cls_min': 79,  # minimum number of atoms in screening cluster
-        'delta_e_min': 1.,  # eV                  # minimal distance in DOS contour to emin and emax in eV
-        'threshold_dos_zero': 10**-2,  #states/eV #
-        'check_dos': False,  # logical to determine if DOS is computed and checked
-        'delta_e_min_core_states':
-        0.2,  # Ry      # minimal distance of start of energy contour to highest lying core state in Ry
-        'ef_set': None  # set Fermi level of starting potential to this value
-    }
-    _options_default = {
-        'queue_name': '',  # Queue name to submit jobs to
-        'resources': {
-            'num_machines': 1
-        },  # resources to allowcate for the job
-        'max_wallclock_seconds': 60 * 60,  # walltime after which the job gets killed (gets parsed to KKR)
-        'withmpi': True,  # execute KKR with mpi or without
-        'custom_scheduler_commands': '',  # some additional scheduler commands
-    }
+    _wf_default = AttributeDict()
+    # number of times voronoi+starting dos+checks is rerun to ensure
+    # non-negative DOS etc
+    _wf_default.num_rerun = 4
+    # alat  factor by which the screening cluster is increased each iteration
+    # (up to num_rerun times)
+    _wf_default.fac_cls_increase = 1.15
+    # minimum number of atoms in screening cluster
+    _wf_default.natom_in_cls_min = 79
+    # minimal distance in DOS contour to emin and emax in eV
+    _wf_default.delta_e_min = 1.0
+    # states/eV
+    _wf_default.threshold_dos_zero = 10**-2
+    # logical to determine if DOS is computed and checked
+    _wf_default.check_dos = False
+    # minimal distance of start of energy contour to highest lying core state in Ry
+    _wf_default.delta_e_min_core_states = 0.2
+    # set Fermi level of starting potential to this value
+    _wf_default.ef_set = None
+
+    _options_default = AttributeDict()
+    # Queue name to submit jobs to
+    _options_default.queue_name = ''
+    # walltime after which the job gets killed (gets parsed to KKR)}
+    _options_default.max_wallclock_seconds = 60 * 60
+    # some additional scheduler commands
+    _options_default.custom_scheduler_commands = ''
+    # execute KKR with mpi or without
+    _options_default.withmpi = True
+    # resources to allowcate for the job
+    _options_default.resources = AttributeDict()
+    _options_default.resources.num_machines = 1
     # add defaults of dos_params since they are passed onto that workflow
-    _wf_default['dos_params'] = kkr_dos_wc.get_wf_defaults(silent=True)
+    _wf_default.dos_params = kkr_dos_wc.get_wf_defaults(silent=True)
 
     _wf_label = ''
     _wf_description = ''
@@ -441,10 +453,11 @@ class kkr_startpot_wc(WorkChain):
             test_and_get_codenode(self.inputs.voronoi, 'kkr.voro', use_exceptions=True)
         except ValueError:
             return self.exit_codes.ERROR_INVALID_VORONOICODE  # pylint: disable=no-member
+        return None
 
     def run_voronoi(self):
         """Run voronoi calculation with parameters from input."""
-        # incerement iteration counter
+        # increment iteration counter
         self.ctx.iter += 1
 
         # increase some parameters
@@ -623,8 +636,8 @@ class kkr_startpot_wc(WorkChain):
 
             # return remote_voro (passed to dos calculation as input)
             return ToContext(voro_calc=future)
-        else:
-            self.report('INFO: skipping voronoi calculation (do DOS run with different emin only)')
+        self.report('INFO: skipping voronoi calculation (do DOS run with different emin only)')
+        return None
 
     def check_voronoi(self):
         """Check voronoi output.
@@ -768,7 +781,7 @@ class kkr_startpot_wc(WorkChain):
             }
             options_node = orm.Dict(dict=options_dict)
             options_node.label = 'options'
-            wfdospara_node = Dict(dict=self.ctx.dos_params_dict)
+            wfdospara_node = orm.Dict(dict=self.ctx.dos_params_dict)
             wfdospara_node.label = 'DOS params'
             wfdospara_node.description = 'DOS parameters passed from kkr_startpot_wc input to DOS sub-workflow'
 
@@ -791,6 +804,7 @@ class kkr_startpot_wc(WorkChain):
             future = self.submit(builder)
 
             return ToContext(doscal=future)
+        return None
 
     def check_dos(self):
         """Checks if dos of starting potential is ok."""
@@ -970,7 +984,7 @@ class kkr_startpot_wc(WorkChain):
             self.report(f'INFO: doscal_results={doscal}')
             self.report(f'INFO: dosdata={dosdata}')
             self.report(f'INFO: dosdata_interpol={dosdata_interpol}')
-        except:
+        except (NameError, AttributeError):
             self.report('INFO: no doscal data')
 
         # collect output nodes
@@ -1058,6 +1072,7 @@ class kkr_startpot_wc(WorkChain):
         """Capture errors raised in validate_input"""
         if self.ctx.exit_code is not None:
             return self.ctx.exit_code
+        return None
 
 
 @calcfunction

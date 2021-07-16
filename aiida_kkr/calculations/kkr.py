@@ -233,7 +233,7 @@ class KkrCalculation(CalcJob):
         spec.exit_code(
             302,
             'ERROR_KKR_PARSING_FAILED',
-            message='KKR parser retuned an error',
+            message='KKR parser returned an error',
         )
         spec.exit_code(
             303,
@@ -269,7 +269,7 @@ class KkrCalculation(CalcJob):
             imp_info = None
             found_imp_info = False
 
-        # for qdos funcitonality
+        # for qdos functionality
         if 'kpoints' in self.inputs:
             kpath = self.inputs.kpoints
             found_kpath = True

@@ -5,19 +5,22 @@ This module contains the band structure workflow for KKR which is done by calcul
 also known as Bloch spectral function.
 """
 
-from __future__ import absolute_import
-from __future__ import print_function
-from aiida.orm import Code, Dict, RemoteData, StructureData, Float, Str, WorkChainNode, load_node, CalcJobNode, ArrayData, KpointsData
+import numpy as np
+from masci_tools.io.kkr_params import kkrparams
+from masci_tools.io.common_functions import get_Ry2eV
+from aiida import orm
 from aiida.engine import WorkChain, ToContext, calcfunction
+from aiida.common.extendeddicts import AttributeDict
 from aiida.tools.data.array.kpoints import get_explicit_kpoints_path
-from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr
+from aiida_kkr.tools.common_workfunctions import (
+    test_and_get_codenode,
+    get_parent_paranode,
+    update_params_wf,
+    get_inputs_kkr,
+)
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
-from masci_tools.io.kkr_params import kkrparams
-from masci_tools.io.common_functions import get_Ry2eV
-import numpy as np
-from six.moves import range
 
 __copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
@@ -35,9 +38,9 @@ class kkr_bs_wc(WorkChain):
 
     :param options: (Dict), (optional); Computer Specifications, scheduler command, parallel or serial
     :param kpoints: (KpointsData),(optional); Kpoints data type from the structure,
-                                   but not mendatory as it can be extracted from structure internaly from the remote data
-    :param remote_data: (RemoteData)(mendaory); From the previous kkr-converged calculation.
-    :param kkr: (Code)(mendaory); KKR code specifiaction
+                                   but not mandatory as it can be extracted from structure internally from the remote data
+    :param remote_data: (RemoteData)(mandatory); From the previous kkr-converged calculation.
+    :param kkr: (Code)(mandatory); KKR code specification
     :param label: (Str) (optional) ; label for WC but will be found in the "result_wf" output
                                      Dict as 'BS_wf_label' key
     :param description: (Str) (optional) : description for WC but will be found in the "result_wf" output
@@ -51,33 +54,41 @@ class kkr_bs_wc(WorkChain):
 
     _wf_version = __version__
     _wf_label = 'kkr_BandStructure_wc'
-    _wf_description = """Workflow for a bandstructure calculation starting eithe from a structure with automatic voronoi'
+    _wf_description = """Workflow for a bandstructure calculation starting from a structure with automatic voronoi'
                         calculation or a valid RemoteData of a previous calculation."""
-    _wf_default = {
-        'emin': -10.0,  # start of the energy range in eV, relative to the Fermi energy
-        'emax': 5.0,  # end of the energy range in eV, relative to the Fermi energy
-        'nepts': 96,  # number of energy points
-        'RCLUSTZ': None,  # can be used to increase the cluster radius if a value is set here
-        'tempr': 50.,  # smearing temperature in K
-    }
+    _wf_default = AttributeDict()
+    # start of the energy range in eV, relative to the Fermi energy
+    _wf_default.emin = -10.0
+    # end of the energy range in eV, relative to the Fermi energy
+    _wf_default.emax = 5.0
+    # number of energy points
+    _wf_default.nepts = 96
+    # can be used to increase the cluster radius if a value is set here
+    _wf_default.RCLUSTZ = None
+    # smearing temperature in K
+    _wf_default.tempr = 50.0
 
-    _options_default = {
-        'max_wallclock_seconds': 36000,
-        'resources': {
-            'num_machines': 1
-        },
-        'withmpi': True,
-        'queue_name': ''
-    }
+    _options_default = AttributeDict()
+    # Queue name to submit jobs to
+    _options_default.queue_name = ''
+    # walltime after which the job gets killed (gets parsed to KKR)}
+    _options_default.max_wallclock_seconds = 60 * 60
+    # some additional scheduler commands
+    _options_default.custom_scheduler_commands = ''
+    # execute KKR with mpi or without
+    _options_default.withmpi = True
+    # resources to allowcate for the job
+    _options_default.resources = AttributeDict()
+    _options_default.resources.num_machines = 1
 
     @classmethod
-    def get_wf_defaults(self, silent=False):
+    def get_wf_defaults(cls, silent=False):
         """
         Return the default values of the workflow parameters (wf_parameters input node)
         """
         if not silent:
-            print(('Version of the kkr_bs_wc workflow: {}'.format(self._wf_version)))
-        return self._wf_default
+            print(f'Version of the kkr_bs_wc workflow: {cls._wf_version}')
+        return cls._wf_default
 
     @classmethod
     def define(cls, spec):
@@ -88,42 +99,70 @@ class kkr_bs_wc(WorkChain):
         # here inputs are defined
         spec.input(
             'wf_parameters',
-            valid_type=Dict,
+            valid_type=orm.Dict,
             required=False,
-            default=lambda: Dict(dict=cls._wf_default),
-            help='Parameters of the bandstructure workflow (see output of kkr_bs_wc.get_wf_default() for more details).'
+            default=lambda: orm.Dict(dict=cls._wf_default),
+            help="""
+            Parameters of the bandstructure workflow
+            (see output of kkr_bs_wc.get_wf_default() for more details).
+            """,
         )
         spec.input(
             'options',
-            valid_type=Dict,
+            valid_type=orm.Dict,
             required=False,
-            default=lambda: Dict(dict=cls._options_default),
-            help='Computer options (walltime etc.) passed onto KkrCalculation'
+            default=lambda: orm.Dict(dict=cls._options_default),
+            help='Computer options (walltime etc.) passed onto KkrCalculation',
         )
         spec.input(
             'remote_data',
-            valid_type=RemoteData,
+            valid_type=orm.RemoteData,
             required=True,
-            help='Parent folder of previoously converged KkrCalculation'
+            help='Parent folder of previously converged KkrCalculation'
         )
-        spec.input('kkr', valid_type=Code, required=True, help='KKRhost code, needed to run the qdos KkrCalculation')
+        spec.input(
+            'kkr',
+            valid_type=orm.Code,
+            required=True,
+            help='KKRhost code, needed to run the qdos KkrCalculation',
+        )
         spec.input(
             'kpoints',
-            valid_type=KpointsData,
+            valid_type=orm.KpointsData,
             required=False,
-            help=
-            'K-points data for the calculation. If not given the seekpath library is used to find the irreducable k-points of a structure.'
+            help="""
+            K-points data for the calculation. If not given the seekpath
+            library is used to find the irreducible k-points of a structure.
+            """,
         )
-        spec.input('label', valid_type=Str, required=False, help='label for the workflow')
-        spec.input('description', valid_type=Str, required=False, help='description for the workflow')
+        spec.input(
+            'label',
+            valid_type=orm.Str,
+            required=False,
+            help='label for the workflow',
+        )
+        spec.input(
+            'description',
+            valid_type=orm.Str,
+            required=False,
+            help='description for the workflow',
+        )
 
         # Here outputs are defined
-        spec.output('results_wf', valid_type=Dict, required=True)
-        spec.output('BS_Data', valid_type=ArrayData, required=True)
+        spec.output(
+            'results_wf',
+            valid_type=orm.Dict,
+            required=True,
+        )
+        spec.output(
+            'BS_Data',
+            valid_type=orm.ArrayData,
+            required=True,
+        )
 
         # Here outlines are being specified
         spec.outline(
-            # For initialiging workflow
+            # For initializing workflow
             cls.start,
             cls.validate_input,
             cls.set_params_BS,
@@ -131,66 +170,100 @@ class kkr_bs_wc(WorkChain):
             cls.return_results
         )
         # definition of exit code in case something goes wrong in this workflow
-        spec.exit_code(161, 'ERROR_NO_INPUT_REMOTE_DATA', 'No remote_data was provided as Input')
         spec.exit_code(
-            162, 'ERROR_KKRCODE_NOT_CORRECT', 'The code you provided for kkr does not use the plugin kkr.kkr'
+            161,
+            'ERROR_NO_INPUT_REMOTE_DATA',
+            'No remote_data was provided as Input',
         )
         spec.exit_code(
-            163, 'ERROR_CALC_PARAMETERS_INVALID',
-            'calc_parameters given are not consistent! Hint: did you give an unknown keyword?'
-        )
-        spec.exit_code(164, 'ERROR_CALC_PARAMETERS_INCOMPLETE', 'calc_parameters not complete')
-        spec.exit_code(165, 'ERROR_BS_CALC_FAILED', 'KKR Band Structure calculation failed')
-        spec.exit_code(166, 'ERROR_NO_KPOINTS_EXTRACTED', 'No K-POINTS can be extracted from the structure data')
-        spec.exit_code(
-            167, 'ERROR_INCORRECT_KPOINTS_EXTRACTED',
-            'No K-POINTS can be extracted from the primtive structure data rather conventional structure data'
+            162,
+            'ERROR_KKRCODE_NOT_CORRECT',
+            'The code you provided for kkr does not use the plugin kkr.kkr',
         )
         spec.exit_code(
-            168, 'ERROR_INVALID_REMOTE_DATA_TPYE',
-            'Input remote_data node neither output of a KKR/voronoi calculation nor of kkr_scf_wc workflow'
+            163,
+            'ERROR_CALC_PARAMETERS_INVALID',
+            'calc_parameters given are not consistent! Hint: did you give an unknown keyword?',
+        )
+        spec.exit_code(
+            164,
+            'ERROR_CALC_PARAMETERS_INCOMPLETE',
+            'calc_parameters not complete',
+        )
+        spec.exit_code(
+            165,
+            'ERROR_BS_CALC_FAILED',
+            'KKR Band Structure calculation failed',
+        )
+        spec.exit_code(
+            166,
+            'ERROR_NO_KPOINTS_EXTRACTED',
+            'No K-POINTS can be extracted from the structure data',
+        )
+        spec.exit_code(
+            167,
+            'ERROR_INCORRECT_KPOINTS_EXTRACTED',
+            'No K-POINTS can be extracted from the primitive structure data rather conventional structure data',
+        )
+        spec.exit_code(
+            168,
+            'ERROR_INVALID_REMOTE_DATA_TYPE',
+            'Input remote_data node neither output of a KKR/voronoi calculation nor of kkr_scf_wc workflow',
         )
 
     def start(self):
         """
         set up context of the workflow
         """
-        self.report('INFO: started KKR Band Structure workflow version {}'.format(self._wf_version))
+        self.report(f'INFO: started KKR Band Structure workflow version {self._wf_version}')
         wf_dict = self.inputs.wf_parameters.get_dict()
         # add missing default values
         for key, val in self._wf_default.items():
             if key not in wf_dict and val is not None:
-                self.report('INFO: Using default wf parameter {}: {}'.format(key, val))
+                self.report(f'INFO: Using default wf parameter {key}: {val}')
                 wf_dict[key] = val
         options_dict = self.inputs.options.get_dict()
         if options_dict == {}:
             self.report('INFO: Using default wf Options')
             options_dict = self._options_default
-        self.ctx.withmpi = options_dict.get('withmpi', self._options_default['withmpi'])
-        self.ctx.resources = options_dict.get('resources', self._options_default['resources'])
-        self.ctx.max_wallclock_seconds = options_dict.get(
-            'max_wallclock_seconds', self._options_default['max_wallclock_seconds']
+        self.ctx.withmpi = options_dict.get(
+            'withmpi',
+            self._options_default['withmpi'],
         )
-        self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
-        self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', '')
+        self.ctx.resources = options_dict.get(
+            'resources',
+            self._options_default['resources'],
+        )
+        self.ctx.max_wallclock_seconds = options_dict.get(
+            'max_wallclock_seconds',
+            self._options_default['max_wallclock_seconds'],
+        )
+        self.ctx.queue = options_dict.get(
+            'queue_name',
+            self._options_default['queue_name'],
+        )
+        self.ctx.custom_scheduler_commands = options_dict.get(
+            'custom_scheduler_commands',
+            '',
+        )
         self.ctx.BS_params_dict = wf_dict
         self.ctx.BS_kkrparams = None  # is set in set_params_BS
         self.ctx.BS_kpoints = None
-        self.ctx.description_wf = self.inputs.get('description', self._wf_description)
+        self.ctx.description_wf = self.inputs.get(
+            'description',
+            self._wf_description,
+        )
         self.ctx.label_wf = self.inputs.get('label', self._wf_label)
         self.report(
-            'INFO: use the following parameter:\n'
-            'withmpi: {}\n'
-            'Resources: {}\n'
-            'Walltime (s): {}\n'
-            'queue name: {}\n'
-            'scheduler command: {}\n'
-            'description_wf: {}\n'
-            'label_wf: {}\n'
-            'BS_params: {}\n'.format(
-                self.ctx.withmpi, self.ctx.resources, self.ctx.max_wallclock_seconds, self.ctx.queue,
-                self.ctx.custom_scheduler_commands, self.ctx.description_wf, self.ctx.label_wf, self.ctx.BS_params_dict
-            )
+            f'INFO: use the following parameter:\n'
+            f'withmpi: {self.ctx.withmpi}\n'
+            f'Resources: {self.ctx.resources}\n'
+            f'Walltime (s): {self.ctx.max_wallclock_seconds}\n'
+            f'queue name: {self.ctx.queue}\n'
+            f'scheduler command: {self.ctx.custom_scheduler_commands}\n'
+            f'description_wf: {self.ctx.description_wf}\n'
+            f'label_wf: {self.ctx.label_wf}\n'
+            f'BS_params: {self.ctx.BS_params_dict}\n'
         )
 
         self.ctx.successful = True
@@ -206,23 +279,23 @@ class kkr_bs_wc(WorkChain):
             input_ok = True
         else:
             input_ok = False
-            return self.exit_codes.ERROR_NO_INPUT_REMOTE_DATA
+            return self.exit_codes.ERROR_NO_INPUT_REMOTE_DATA  # pylint: disable=no-member
         input_remote = self.inputs.remote_data
-        parents = input_remote.get_incoming(node_class=CalcJobNode)
+        parents = input_remote.get_incoming(node_class=orm.CalcJobNode)
         nparents = len(parents.all_link_labels())
 
         if nparents != 1:
             # extract parent workflow and get uuid of last calc from output node
             parent_workflow = input_remote.inputs.last_RemoteData
-            if not isinstance(parent_workflow, WorkChainNode):
-                return self.exit_codes.ERROR_INVALID_REMOTE_DATA_TPYE
+            if not isinstance(parent_workflow, orm.WorkChainNode):
+                return self.exit_codes.ERROR_INVALID_REMOTE_DATA_TYPE  # pylint: disable=no-member
 
             parent_workflow_out = parent_workflow.outputs.output_kkr_scf_wc_ParameterResults
             uuid_last_calc = parent_workflow_out.get_dict().get('last_calc_nodeinfo').get('uuid')
-            last_calc = load_node(uuid_last_calc)
+            last_calc = orm.load_node(uuid_last_calc)
 
             if not isinstance(last_calc, KkrCalculation) and not isinstance(last_calc, VoronoiCalculation):
-                return self.exit_code.ERROR_INVALID_REMOTE_DATA_TPYE
+                return self.exit_code.ERROR_INVALID_REMOTE_DATA_TYPE  # pylint: disable=no-member
 
             # overwrite remote_data node with extracted remote folder
             output_remote = last_calc.outputs.remote_folder
@@ -234,12 +307,16 @@ class kkr_bs_wc(WorkChain):
             input_ok = True
         else:
             struc_kkr, remote_voro = VoronoiCalculation.find_parent_structure(self.inputs.remote_data)
-            #create an auxiliary structure with unique kind_names, this leads to using the input structure in the seekpath method instead of finding the primitive one
-            saux = StructureData(cell=struc_kkr.cell)
+            # create an auxiliary structure with unique kind_names, this leads
+            # to using the input structure in the seekpath method instead of
+            # finding the primitive one
+            saux = orm.StructureData(cell=struc_kkr.cell)
             for isite, site in enumerate(struc_kkr.sites):
                 kind = struc_kkr.get_kind(site.kind_name)
                 saux.append_atom(
-                    name='atom' + str(isite) + ':' + site.kind_name, symbols=kind.symbol, position=site.position
+                    name='atom' + str(isite) + ':' + site.kind_name,
+                    symbols=kind.symbol,
+                    position=site.position,
                 )
             # use auxiliary structure inside k-point generator
             output = get_explicit_kpoints_path(saux)
@@ -247,31 +324,30 @@ class kkr_bs_wc(WorkChain):
             conventional_struc = output['conv_structure']
             kpoints_ok = True
 
-            #check if primitive_structure and input structure are identical:
+            # Check if primitive_structure and input structure are identical:
             maxdiff_cell = sum(abs(np.array(primitive_struc.cell) - np.array(saux.cell))).max()
 
             if maxdiff_cell > 3 * 10**-9:
-                self.report('Error in cell : {}'.format(maxdiff_cell))
+                self.report(f'Error in cell : {maxdiff_cell}')
                 self.report(
-                    'WARNING : The structure data from the voronoi calc is not the primitive structure type and in come cases it is medatory'
+                    'WARNING : The structure data from the voronoi calc is not the primitive structure type and in come cases it is mandatory'
                 )
-                self.report('prim: {} {}'.format(primitive_struc.cell, primitive_struc.sites))
-                self.report('conv: {} {}'.format(conventional_struc.cell, conventional_struc.sites))
+                self.report(f'prim: {primitive_struc.cell} {primitive_struc.sites}')
+                self.report(f'conv: {conventional_struc.cell} {conventional_struc.sites}')
                 self.ctx.structure_data = 'conventional_unit_cell '
             else:
                 self.ctx.structure_data = 'primitive_unit_cell'
 
             if not kpoints_ok:
-                return self.exit_codes.ERROR_INCORRECT_KPOINTS_EXTRACTED
-            else:
-                kpts = get_explicit_kpoints_path(struc_kkr).get('explicit_kpoints')
+                return self.exit_codes.ERROR_INCORRECT_KPOINTS_EXTRACTED  # pylint: disable=no-member
+            kpts = get_explicit_kpoints_path(struc_kkr).get('explicit_kpoints')
 
             self.ctx.BS_kpoints = kpts
-            if isinstance(KpointsData(), type(kpts)):
+            if isinstance(orm.KpointsData(), type(kpts)):
                 input_ok = True
             else:
                 input_ok = False
-                return self.exit_codes.ERROR_NO_KPOINTS_EXTRACTED
+                return self.exit_codes.ERROR_NO_KPOINTS_EXTRACTED  # pylint: disable=no-member
 
         # To validate for kkr
         if 'kkr' in inputs:
@@ -279,11 +355,12 @@ class kkr_bs_wc(WorkChain):
                 test_and_get_codenode(inputs.kkr, 'kkr.kkr', use_exceptions=True)
             except ValueError:
                 input_ok = False
-                return self.exit_codes.ERROR_KKRCODE_NOT_CORRECT
+                return self.exit_codes.ERROR_KKRCODE_NOT_CORRECT  # pylint: disable=no-member
 
         # set self.ctx.input_params_KKR
         self.ctx.input_params_KKR = get_parent_paranode(self.inputs.remote_data)
-        self.report('The validation input_ok {}'.format(input_ok))
+        self.report(f'The validation input_ok {input_ok}')
+        return None
 
     def set_params_BS(self):
         """
@@ -297,9 +374,9 @@ class kkr_bs_wc(WorkChain):
             for key, val in input_dict.items():
                 para_check.set_value(key, val, silent=True)
         except:
-            return self.exit_codes.ERROR_CALC_PARAMETERS_INVALID
+            return self.exit_codes.ERROR_CALC_PARAMETERS_INVALID  # pylint: disable=no-member
         label = ''
-        descr = '(pk - {}, and uuid - {})'.format(self.inputs.remote_data.pk, self.inputs.remote_data.uuid)
+        descr = f'(pk - {self.inputs.remote_data.pk}, and uuid - {self.inputs.remote_data.pk})'
 
         missing_list = para_check.get_missing_keys(use_aiida=True)
 
@@ -312,12 +389,11 @@ class kkr_bs_wc(WorkChain):
                     kkrdefaults_updated.append(key_default)
                     missing_list.remove(key_default)
             if len(missing_list) > 0:
-                self.report('ERROR: calc_parameters misses keys: {}'.format(missing_list))
-                return self.exit_codes.ERROR_CALC_PARAMETERS_INCOMPLETE
-            else:
-                self.report('updated KKR parameter node with default values: {}'.format(kkrdefaults_updated))
-                label = 'add_defaults_'
-                descr = 'added missing default keys, '
+                self.report(f'ERROR: calc_parameters misses keys: {missing_list}')
+                return self.exit_codes.ERROR_CALC_PARAMETERS_INCOMPLETE  # pylint: disable=no-member
+            self.report(f'updated KKR parameter node with default values: {kkrdefaults_updated}')
+            label = 'add_defaults_'
+            descr = 'added missing default keys, '
         ##+++ Starts to add the NTP2, EMAX and EMIN from the
         econt_new = self.ctx.BS_params_dict
         kkr_calc = self.inputs.remote_data.get_incoming().first().node
@@ -328,19 +404,20 @@ class kkr_bs_wc(WorkChain):
         try:
             para_check = set_energy_params(econt_new, ef, para_check)
         except:
-            return self.exit_codes.ERROR_CALC_PARAMETERS_INVALID
+            return self.exit_codes.ERROR_CALC_PARAMETERS_INVALID  # pylint: disable=no-member
         para_check.set_multiple_values(
             NPT1=0,
             NPT3=0,
             NPOL=0,
         )
 
-        updatenode = Dict(dict=para_check.get_dict())
+        updatenode = orm.Dict(dict=para_check.get_dict())
         updatenode.label = label + 'KKRparam_BS'
         updatenode.description = 'KKR parameter node extracted from remote_folder' + descr + ' as well as wf_parameter input node.'
 
         paranode_BS = update_params_wf(self.ctx.input_params_KKR, updatenode)
         self.ctx.BS_kkrparams = paranode_BS
+        return None
 
     def get_BS(self):
         """
@@ -351,7 +428,7 @@ class kkr_bs_wc(WorkChain):
         key_list = list(BS_dict)
         description = 'User defined BandStructure parameters '
         for key in key_list:
-            description += '{}= {} ,'.format(key, BS_dict[key])
+            description += f'{key}= {BS_dict[key]} ,'
 
         code = self.inputs.kkr
         remote = self.inputs.remote_data
@@ -381,15 +458,15 @@ class kkr_bs_wc(WorkChain):
         Collect results, parse BS_calc output and link output nodes to workflow node
         """
 
-        caching_info = 'INFO: cache_source of BS calc node: {}'.format(self.ctx.BS_run.get_cache_source)
+        caching_info = f'INFO: cache_source of BS calc node: {self.ctx.BS_run.get_cache_source}'
         self.report(caching_info)
 
         if not self.ctx.BS_run.is_finished_ok:
             self.ctx.successful = False
-            error = ('ERROR BS calculation failed somehow it is ' 'in state {}'.format(self.ctx.BS_run.process_state))
+            error = f'ERROR BS calculation failed somehow it is in state {self.ctx.BS_run.process_state}'
             self.report(error)
             self.ctx.errors.append(error)
-            return self.exit_codes.ERROR_BS_CALC_FAILED
+            return self.exit_codes.ERROR_BS_CALC_FAILED  # pylint: disable=no-member
 
         # create dict to store results of workflow output
         outputnode_dict = {}
@@ -415,22 +492,20 @@ class kkr_bs_wc(WorkChain):
         outputnode_dict['list_of_errors'] = self.ctx.errors
 
         # create output node with data-provenance
-        outputnode = Dict(dict=outputnode_dict)
+        outputnode = orm.Dict(dict=outputnode_dict)
         outputnode.label = 'kkr_BS_wc_results'
         outputnode.description = 'Contains the info of the WC'
 
         self.report('INFO: create Banstructure results nodes')
         try:
             self.report(
-                'INFO: create Bandstructure results nodes. BS calc retrieved node={}'.format(
-                    self.ctx.BS_run.outputs.retrieved
-                )
+                f'INFO: create Bandstructure results nodes. BS calc retrieved node={self.ctx.BS_run.outputs.retrieved}'
             )
             has_BS_run = True
-        except AttributeError as e:
+        except AttributeError as _error:
             self.report('ERROR: No Bandstructure calc retrieved node found')
-            self.report('Caught AttributeError {}'.format(e))
-            return self.exit_codes.ERROR_BS_CALC_FAILED
+            self.report(f'Caught AttributeError {_error}')
+            return self.exit_codes.ERROR_BS_CALC_FAILED  # pylint: disable=no-member
 
         if has_BS_run:
             BS_retrieved = self.ctx.BS_run.outputs.retrieved
@@ -442,7 +517,7 @@ class kkr_bs_wc(WorkChain):
         # to the output(spec.output) of the wf
         outdict = {}
         if has_BS_run:
-            ArraData = parse_BS_data(BS_retrieved, Float(ef), kpoints)
+            ArraData = parse_BS_data(BS_retrieved, orm.Float(ef), kpoints)
             outdict['BS_Data'] = ArraData['BS_Data']
 
         # link to the BS output nodes
@@ -455,6 +530,7 @@ class kkr_bs_wc(WorkChain):
             self.out(link_name, node)
 
         self.report('INFO: done with BS_workflow!\n')
+        return None
 
 
 def set_energy_params(econt_new, ef, para_check):
@@ -532,7 +608,7 @@ def parse_BS_data(retrieved_folder, fermi_level, kpoints):
 
     klbl_dict = dict(kpoints.labels)  # Special k-points
     # To save into the ArrayData
-    array = ArrayData()
+    array = orm.ArrayData()
     array.set_array('BlochSpectralFunction', qdos_intensity)
     array.set_array('Kpts', q_vec)
     array.set_array('energy_points', eng_points)
