@@ -28,8 +28,19 @@ from ..util import defaults
 @options.PARAMETERS()
 @options.PARENT_FOLDER()
 @options.POTENTIAL_OVERWRITE()
+@options.MAX_WALLCLOCK_SECONDS()
+@options.QUEUE_NAME()
 @options.DAEMON()
-def launch_voro(structure, voro, parameters, parent_folder, potential_overwrite, daemon):
+def launch_voro(
+    structure,
+    voro,
+    parameters,
+    parent_folder,
+    potential_overwrite,
+    max_wallclock_seconds,
+    queue_name,
+    daemon,
+):
     """
     Launch an Voronoi calcjob on given input
     """
@@ -37,15 +48,16 @@ def launch_voro(structure, voro, parameters, parent_folder, potential_overwrite,
     process_class = CalculationFactory('kkr.voro')
 
     inputs = {
-        'structure': structure, 
+        'structure': structure,
         'code': voro,
-        'parameters': parameters, 
-        'parent_kkr': parent_folder, 
+        'parameters': parameters,
+        'parent_kkr': parent_folder,
         'potential_overwrite': potential_overwrite,
         'metadata': {
             'options': {
                 'withmpi': False,
-                'max_wallclock_seconds': 6000,
+                'queue_name': queue_name,
+                'max_wallclock_seconds': max_wallclock_seconds,
                 'resources': {
                     'num_machines': 1,
                     'num_mpiprocs_per_machine': 1,
@@ -58,6 +70,7 @@ def launch_voro(structure, voro, parameters, parent_folder, potential_overwrite,
     builder.update(inputs)
     launch_process(builder, daemon)
 
+
 @click.command('kkr')
 @options.KKR()
 @options.PARAMETERS()
@@ -69,7 +82,20 @@ def launch_voro(structure, voro, parameters, parent_folder, potential_overwrite,
 @options.NUM_MPIPROCS_PER_MACHINE()
 @options.MAX_WALLCLOCK_SECONDS()
 @options.MAX_NUM_MACHINES()
-def launch_kkr(kkr, parameters, parent_folder, impurity_info, kpoints, daemon, with_mpi, num_mpiprocs_per_machine, max_wallclock_seconds, max_num_machines):
+@options.QUEUE_NAME()
+def launch_kkr(
+    kkr,
+    parameters,
+    parent_folder,
+    impurity_info,
+    kpoints,
+    daemon,
+    with_mpi,
+    num_mpiprocs_per_machine,
+    max_wallclock_seconds,
+    max_num_machines,
+    queue_name,
+):
     """
     Launch an KKRhost calcjob on given input
     """
@@ -78,17 +104,18 @@ def launch_kkr(kkr, parameters, parent_folder, impurity_info, kpoints, daemon, w
 
     inputs = {
         'code': kkr,
-        'parameters': parameters, 
-        'parent_folder': parent_folder, 
+        'parameters': parameters,
+        'parent_folder': parent_folder,
         'impurity_info': impurity_info,
         'metadata': {
             'options': {
                 'withmpi': with_mpi,
                 'max_wallclock_seconds': max_wallclock_seconds,
+                'queue_name': queue_name,
                 'resources': {
                     'num_machines': max_num_machines,
                     'num_mpiprocs_per_machine': num_mpiprocs_per_machine,
-                }
+                },
             }
         }
     }
@@ -108,7 +135,17 @@ def launch_kkr(kkr, parameters, parent_folder, impurity_info, kpoints, daemon, w
 @options.NUM_MPIPROCS_PER_MACHINE()
 @options.MAX_WALLCLOCK_SECONDS()
 @options.MAX_NUM_MACHINES()
-def launch_kkrimp(kkrimp, parameters, parent_folder, impurity_info, daemon, with_mpi, num_mpiprocs_per_machine, max_wallclock_seconds, max_num_machines):
+def launch_kkrimp(
+    kkrimp,
+    parameters,
+    parent_folder,
+    impurity_info,
+    daemon,
+    with_mpi,
+    num_mpiprocs_per_machine,
+    max_wallclock_seconds,
+    max_num_machines,
+):
     """
     Launch an KKRimp calcjob on given input
     """
@@ -117,8 +154,8 @@ def launch_kkrimp(kkrimp, parameters, parent_folder, impurity_info, daemon, with
 
     inputs = {
         'code': kkrimp,
-        'parameters': parameters, 
-        'parent_folder': parent_folder, 
+        'parameters': parameters,
+        'parent_folder': parent_folder,
         'impurity_info': impurity_info,
         'metadata': {
             'options': {
@@ -152,7 +189,34 @@ def launch_dos(kkr, wf_parameters, option_node, parent_folder, daemon):
 
     inputs = {
         'kkr': kkr,
-        'remote_data': parent_folder, 
+        'remote_data': parent_folder,
+        'options': option_node,
+        'wf_parameters': wf_parameters,
+    }
+    inputs = clean_nones(inputs)
+    builder = process_class.get_builder()
+    builder.update(inputs)
+    launch_process(builder, daemon)
+
+
+@click.command('bs')
+@options.KKR()
+@options.WF_PARAMETERS()
+@options.KPOINTS()
+@options.OPTION_NODE()
+@options.PARENT_FOLDER()
+@options.DAEMON()
+def launch_bs(kkr, wf_parameters, kpoints, option_node, parent_folder, daemon):
+    """
+    Launch an KKRhost bandstructure workflow with required inputs
+    (kkr code, remote_data, options, wf-parameters, daemon)
+    """
+    process_class = WorkflowFactory('kkr.bs')
+
+    inputs = {
+        'kkr': kkr,
+        'remote_data': parent_folder,
+        'kpoints': kpoints,
         'options': option_node,
         'wf_parameters': wf_parameters,
     }
@@ -173,7 +237,18 @@ def launch_dos(kkr, wf_parameters, option_node, parent_folder, daemon):
 @options.WF_PARAMETERS()
 @options.POTENTIAL_OVERWRITE()
 @options.NOCO_ANGLES()
-def launch_scf(kkr, voro, structure, parameters, parent_folder, daemon, option_node, wf_parameters, potential_overwrite, noco_angles):
+def launch_scf(
+    kkr,
+    voro,
+    structure,
+    parameters,
+    parent_folder,
+    daemon,
+    option_node,
+    wf_parameters,
+    potential_overwrite,
+    noco_angles,
+):
     """
     Launch an KKRhost self-consistency workflow
     """
@@ -184,8 +259,8 @@ def launch_scf(kkr, voro, structure, parameters, parent_folder, daemon, option_n
         'kkr': kkr,
         'voronoi': voro,
         'structure': structure,
-        'calc_parameters': parameters, 
-        'remote_data': parent_folder, 
+        'calc_parameters': parameters,
+        'remote_data': parent_folder,
         'options': option_node,
         'wf_parameters': wf_parameters,
         'startpot_overwrite': potential_overwrite,
@@ -197,7 +272,6 @@ def launch_scf(kkr, voro, structure, parameters, parent_folder, daemon, option_n
     launch_process(builder, daemon)
 
 
-
 PARENT_FOR_IMP = OverridableOption(
     '-P',
     '--parent-folder',
@@ -205,7 +279,9 @@ PARENT_FOR_IMP = OverridableOption(
     type=types.DataParamType(sub_classes=('aiida.data:remote',)),
     show_default=True,
     required=True,
-    help='The remote folder of a parent calculation (either the converged calculation or a GF writeout calculation which prevents recalculating the host Greens function).')
+    help=
+    'The remote folder of a parent calculation (either the converged calculation or a GF writeout calculation which prevents recalculating the host Greens function).'
+)
 
 PARAMS_HOST_GF = OverridableOption(
     '-p',
@@ -213,13 +289,17 @@ PARAMS_HOST_GF = OverridableOption(
     'parameters_hostgf',
     type=types.DataParamType(sub_classes=('aiida.data:dict',)),
     show_default=True,
-    help='Set of parameters that are overwritten in the host GF writeout step.')
+    help='Set of parameters that are overwritten in the host GF writeout step.'
+)
 
 IMP_STARTPOT = OverridableOption(
     '--impurity-startpot',
     'impurity_startpot',
     type=types.DataParamType(sub_classes=('aiida.data:singlefile',)),
-    help='Use this as the starting potential for the impurity calculation. Needs to match the settings in the impurity info node.')
+    help=
+    'Use this as the starting potential for the impurity calculation. Needs to match the settings in the impurity info node.'
+)
+
 
 def _check_parent_calc_type(parent_folder):
     """
@@ -243,7 +323,18 @@ def _check_parent_calc_type(parent_folder):
 @PARAMS_HOST_GF()
 @options.WF_PARAMETERS()
 @IMP_STARTPOT()
-def launch_kkrimp_scf(kkr, voro, kkr_imp, impurity_info, parent_folder, option_node, daemon, parameters_hostgf, wf_parameters, impurity_startpot):
+def launch_kkrimp_scf(
+    kkr,
+    voro,
+    kkr_imp,
+    impurity_info,
+    parent_folder,
+    option_node,
+    daemon,
+    parameters_hostgf,
+    wf_parameters,
+    impurity_startpot,
+):
     """
     Launch an kkr calcjob on given input
     """
@@ -274,4 +365,3 @@ def launch_kkrimp_scf(kkr, voro, kkr_imp, impurity_info, parent_folder, option_n
     builder = process_class.get_builder()
     builder.update(inputs)
     launch_process(builder, daemon)
-
