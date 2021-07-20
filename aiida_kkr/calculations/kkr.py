@@ -2,14 +2,11 @@
 """
 Input plug-in for a KKR calculation.
 """
-from __future__ import print_function, absolute_import
-from __future__ import unicode_literals
-import os
 import numpy as np
 from aiida.engine import CalcJob
 from aiida.orm import CalcJobNode, load_node, RemoteData, Dict, StructureData, KpointsData, Bool
+from sqlalchemy.sql.functions import current_date
 from .voro import VoronoiCalculation
-from aiida.common.utils import classproperty
 from aiida.common.exceptions import InputValidationError, ValidationError
 from aiida.common.datastructures import CalcInfo, CodeInfo
 from aiida.common.exceptions import UniquenessError
@@ -20,7 +17,6 @@ from masci_tools.io.common_functions import get_alat_from_bravais, get_Ang2aBohr
 from aiida_kkr.tools.tools_kkrimp import make_scoef, write_scoef_full_imp_cls
 from masci_tools.io.kkr_params import __kkr_default_params__, kkrparams
 import six
-from six.moves import range
 
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
@@ -297,13 +293,12 @@ class KkrCalculation(CalcJob):
         try:
             parent_inp_dict = parent_calc.inputs.parameters.get_dict()
         except:
-            self.logger.error('Failed trying to find input parameter of parent {}'.format(parent_calc))
+            self.logger.error(f'Failed trying to find input parameter of parent {parent_calc}')
             raise InputValidationError('No parameter node found of parent calculation.')
 
         # check if no keys are illegally overwritten (i.e. compare with keys in self._do_never_modify)
         for key in list(parameters.get_dict().keys()):
             value = parameters.get_dict()[key]
-            #self.logger.info("Checking {} {}".format(key, value))
             if value is not None:
                 if key in self._do_never_modify:
                     oldvalue = parent_inp_dict[key]
@@ -408,9 +403,9 @@ class KkrCalculation(CalcJob):
                 hcut = imp_info_dict.get('hcut', -1.)
                 cylinder_orient = imp_info_dict.get('cylinder_orient', [0., 0., 1.])
                 ilayer_center = imp_info_dict.get('ilayer_center', 0)
-                for i in range(len(cylinder_orient)):
+                for current_orient in cylinder_orient:
                     try:
-                        len(cylinder_orient[i])
+                        len(current_orient)
                         vec_shape = False
                     except TypeError:
                         vec_shape = True
@@ -420,7 +415,7 @@ class KkrCalculation(CalcJob):
                     raise IndexError(
                         f'Index of the reference site is out of range! Possible values: 0 to {len(structure.sites) - 1}.'
                     )
-                elif Rcut < 0:
+                if Rcut < 0:
                     raise ValueError('Cutoff radius has to be positive!')
                 if not vec_shape or len(cylinder_orient) != 3:
                     raise TypeError(
@@ -471,7 +466,7 @@ class KkrCalculation(CalcJob):
         else:
             # extract shapes from input parameters node constructed by kkrimporter calculation
             shapes = voro_parent.inputs.parameters.get_dict().get('<SHAPE>')
-        self.logger.info('Extracted shapes: {}'.format(shapes))
+        self.logger.info(f'Extracted shapes: {shapes}')
 
         # qdos option, ensure low T, E-contour, qdos run option and write qvec.dat file
         if found_kpath:
@@ -565,8 +560,8 @@ class KkrCalculation(CalcJob):
                 local_copy_list = self._set_ef_value_potential(ef_set, local_copy_list, tempfolder)
 
             # TODO different copy lists, depending on the keywors input
-            print('local copy list: {}'.format(local_copy_list))
-            self.report('local copy list: {}'.format(local_copy_list))
+            print(f'local copy list: {local_copy_list}')
+            self.report(f'local copy list: {local_copy_list}')
 
         # Prepare CalcInfo to be returned to aiida
         calcinfo = CalcInfo()
@@ -704,7 +699,7 @@ class KkrCalculation(CalcJob):
         """
         Set EF value ef_set in the potential file.
         """
-        self.report('local copy list before change: {}'.format(local_copy_list))
+        self.report(f'local copy list before change: {local_copy_list}')
         self.report("found 'ef_set' in parameters: change EF of potential to this value")
 
         # first read old potential
@@ -735,10 +730,9 @@ class KkrCalculation(CalcJob):
 
         # now change value of Fermi level in potential text
         potstart = []
-        for iline in range(len(txt)):
-            line = txt[iline]
+        for index, line in enumerate(txt):
             if 'exc:' in line:
-                potstart.append(iline)
+                potstart.append(index)
         for ipotstart in potstart:
             self.report(f'set ef {ef_set} in potential starting in line {ipotstart}')
             tmpline = txt[ipotstart + 3]
@@ -899,9 +893,8 @@ class KkrCalculation(CalcJob):
         n_parents = len(parent_calcs.all_link_labels())
         if n_parents != 1:
             raise UniquenessError(
-                'Input RemoteData is child of {} '
-                'calculation{}, while it should have a single parent'
-                ''.format(n_parents, '' if n_parents == 0 else 's')
+                f'Input RemoteData is child of {n_parents} '
+                f'calculation{"" if n_parents == 0 else "s"}, while it should have a single parent'
             )
             # TODO change to exit code
         parent_calc = parent_calcs.first().node
@@ -938,12 +931,10 @@ def _update_params(parameters, change_values):
     """
     if change_values != []:
         new_params = {}
-        #{'nodename': 'changed_params_qdos', 'nodedesc': 'Changed parameters to mathc qdos mode. Changed values: {}'.format(change_values)}
         for key, val in parameters.get_dict().items():
             new_params[key] = val
         for key, val in change_values:
             new_params[key] = val
         new_params_node = Dict(dict=new_params)
-        #parameters = update_params_wf(parameters, new_params_node)
         parameters = new_params_node
     return parameters

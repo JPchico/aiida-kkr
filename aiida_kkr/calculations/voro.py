@@ -2,17 +2,12 @@
 """
 Input plug-in for a voronoi calculation.
 """
-from __future__ import print_function
-from __future__ import absolute_import
+from aiida import orm
 from aiida.engine import CalcJob
-from aiida.orm import CalcJobNode, Dict, StructureData, RemoteData, SinglefileData
-from aiida.common.utils import classproperty
-from aiida.common.exceptions import (InputValidationError, ValidationError)
+from aiida.common.exceptions import InputValidationError
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
 from aiida_kkr.tools.common_workfunctions import generate_inputcard_from_structure, check_2Dinput_consistency, vca_check
 from aiida.common.exceptions import UniquenessError, NotExistent
-import os
-import six
 
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
@@ -32,7 +27,7 @@ class VoronoiCalculation(CalcJob):
     _CALCULATION_PLUGIN_VERSION = __version__
     # Default input and output files
     _DEFAULT_INPUT_FILE = 'inputcard'  # will be shown with inputcat
-    _DEFAULT_OUTPUT_FILE = 'out_voronoi'  #'shell output will be shown with outputca
+    _DEFAULT_OUTPUT_FILE = 'out_voronoi'  # shell output will be shown with outputcar
     # List of mandatory input files
     _INPUT_FILE_NAME = 'inputcard'
     # List of output files that should always be present
@@ -56,46 +51,58 @@ class VoronoiCalculation(CalcJob):
         super(VoronoiCalculation, cls).define(spec)
         # now define input files and parser
         spec.input(
-            'metadata.options.parser_name', valid_type=six.string_types, default=cls._default_parser, non_db=True
+            'metadata.options.parser_name',
+            valid_type=str,
+            default=cls._default_parser,
+            non_db=True,
         )
         spec.input(
             'metadata.options.input_filename',
-            valid_type=six.string_types,
+            valid_type=str,
             default=cls._DEFAULT_INPUT_FILE,
-            non_db=True
+            non_db=True,
         )
         spec.input(
             'metadata.options.output_filename',
-            valid_type=six.string_types,
+            valid_type=str,
             default=cls._DEFAULT_OUTPUT_FILE,
-            non_db=True
+            non_db=True,
         )
         # define input nodes (optional ones have required=False)
-        spec.input('parameters', valid_type=Dict, help='Use a node that specifies the input parameters')
+        spec.input(
+            'parameters',
+            valid_type=orm.Dict,
+            help='Use a node that specifies the input parameters',
+        )
         spec.input(
             'structure',
-            valid_type=StructureData,
+            valid_type=orm.StructureData,
             required=False,
             help='Use a node that specifies the input crystal structure'
         )
         spec.input(
             'parent_KKR',
-            valid_type=RemoteData,
+            valid_type=orm.RemoteData,
             required=False,
             help='Use a node that specifies a parent KKR calculation'
         )
         spec.input(
             'potential_overwrite',
-            valid_type=SinglefileData,
+            valid_type=orm.SinglefileData,
             required=False,
             help='Use a node that specifies the potential which is used instead of the voronoi output potential'
         )
         # define outputs
-        spec.output('output_parameters', valid_type=Dict, required=True, help='results of the calculation')
+        spec.output(
+            'output_parameters',
+            valid_type=orm.Dict,
+            required=True,
+            help='results of the calculation',
+        )
         spec.default_output_node = 'output_parameters'
         # define exit codes, also used in parser
         spec.exit_code(301, 'ERROR_NO_OUTPUT_FILE', message='Voronoi output file not found')
-        spec.exit_code(302, 'ERROR_VORONOI_PARSING_FAILED', message='Voronoi parser retuned an error')
+        spec.exit_code(302, 'ERROR_VORONOI_PARSING_FAILED', message='Voronoi parser returned an error')
 
     def prepare_for_submission(self, tempfolder):
         """Create the input files from the input nodes passed to this instance of the `CalcJob`.
@@ -245,13 +252,12 @@ class VoronoiCalculation(CalcJob):
         overwrite_pot = False
 
         # extract parent calculation
-        parent_calcs = parent_calc_folder.get_incoming(node_class=CalcJobNode)
+        parent_calcs = parent_calc_folder.get_incoming(node_class=orm.CalcJobNode)
         n_parents = len(parent_calcs.all_link_labels())
         if n_parents != 1:
             raise UniquenessError(
-                'Input RemoteData is child of {} '
-                'calculation{}, while it should have a single parent'
-                ''.format(n_parents, '' if n_parents == 0 else 's')
+                f'Input RemoteData is child of {n_parents} '
+                f'calculation{"" if n_parents == 0 else "s"}, while it should have a single parent'
             )
         parent_calc = parent_calcs.first().node
         overwrite_pot = True
@@ -348,11 +354,9 @@ class VoronoiCalculation(CalcJob):
             iiter += 1
             if iiter % 200 == 0:
                 print(
-                    'Warning: find_parent_structure takes quite long (already searched {} ancestors). Stop after {}'.
-                    format(iiter, Nmaxiter)
+                    f'Warning: find_parent_structure takes quite long (already searched {iiter} ancestors). Stop after {Nmaxiter}'
                 )
         if self._has_struc(parent_folder_tmp):
             struc = self._get_struc(parent_folder_tmp)
             return struc, parent_folder_tmp
-        else:
-            raise ValueError('structure not found'.format(parent_folder_tmp))
+        raise ValueError('structure not found'.format(parent_folder_tmp))

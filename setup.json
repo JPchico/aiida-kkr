@@ -36,27 +36,16 @@
         "bump2version >= 0.5.10"
     ],
     "extras_require": {
-        "pre-commit": [
-            "pre-commit==1.11.0",
-            "yapf==0.24.0",
-            "prospector==0.12.11",
-            "pylint==1.9.3"
-        ]
+        "pre-commit": ["pre-commit==1.11.0", "yapf==0.24.0", "prospector==0.12.11", "pylint==1.9.3"]
     },
     "entry_points": {
         "aiida.calculations": [
-            "kkr.kkr = aiida_kkr.calculations.kkr:KkrCalculation",
-            "kkr.kkrimporter = aiida_kkr.calculations.kkrimporter:KkrImporterCalculation",
-            "kkr.voro = aiida_kkr.calculations.voro:VoronoiCalculation",
-            "kkr.kkrimp = aiida_kkr.calculations.kkrimp:KkrimpCalculation"
+            "kkr.kkr = aiida_kkr.calculations.kkr:KkrCalculation", "kkr.kkrimporter = aiida_kkr.calculations.kkrimporter:KkrImporterCalculation", "kkr.voro = aiida_kkr.calculations.voro:VoronoiCalculation", "kkr.kkrimp = aiida_kkr.calculations.kkrimp:KkrimpCalculation"
         ],
         "aiida.parsers": [
-            "kkr.voroparser = aiida_kkr.parsers.voro:VoronoiParser",
-            "kkr.kkrparser = aiida_kkr.parsers.kkr:KkrParser",
-            "kkr.kkrimporterparser = aiida_kkr.parsers.kkrimporter:KkrImporterParser",
-            "kkr.kkrimpparser = aiida_kkr.parsers.kkrimp:KkrimpParser"
+            "kkr.voroparser = aiida_kkr.parsers.voro:VoronoiParser", "kkr.kkrparser = aiida_kkr.parsers.kkr:KkrParser", "kkr.kkrimporterparser = aiida_kkr.parsers.kkrimporter:KkrImporterParser", "kkr.kkrimpparser = aiida_kkr.parsers.kkrimp:KkrimpParser"
         ],
-        "aiida.data": [],
+        "aiida.data": ["kkr.potential = aiida_kkr.data.kkr_potential:KKRPotentialData"],
         "aiida.workflows": [
             "kkr.scf = aiida_kkr.workflows.kkr_scf:kkr_scf_wc",
             "kkr.base = aiida_kkr.workflows.base_kkr:BaseKKRWorkchain",
@@ -70,10 +59,8 @@
             "kkr.imp = aiida_kkr.workflows.kkr_imp:kkr_imp_wc",
             "kkr.imp_sub = aiida_kkr.workflows.kkr_imp_sub:kkr_imp_sub_wc",
             "kkr.imp_dos = aiida_kkr.workflows.kkr_imp_dos:kkr_imp_dos_wc",
-            "kk.decimation = aiida_kkr.workflows._decimation:kkr_decimation_wc"
+            "kkr.decimation = aiida_kkr.workflows._decimation:kkr_decimation_wc"
         ],
-        "console_scripts": [
-            "aiida-kkr = aiida_kkr.cmdline:cmd_root"
-        ]
+        "console_scripts": ["aiida-kkr = aiida_kkr.cmdline:cmd_root"]
     }
 }

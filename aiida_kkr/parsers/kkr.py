@@ -5,11 +5,10 @@ The parser should never fail, but it should catch
 all errors and warnings and show them to the user.
 """
 
-from __future__ import absolute_import
 from aiida.parsers.parser import Parser
 from aiida.orm import Dict
 from aiida_kkr.calculations.kkr import KkrCalculation
-from aiida.common.exceptions import InputValidationError, NotExistent
+from aiida.common.exceptions import NotExistent
 from masci_tools.io.parsers.kkrparser_functions import parse_kkr_outputfile, check_error_category
 from masci_tools.io.common_functions import search_string
 
