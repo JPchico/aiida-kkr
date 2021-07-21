@@ -22,7 +22,14 @@ class KKRPotentialData(SinglefileData):
         for key, value in potential_header.items():
             self.set_attribute(key, value)
 
-        _keys = ['cell', 'position', 'calculation_magnetism', 'soc', 'potential_type']
+        _keys = [
+            'cell',
+            'position',
+            'calculation_magnetism',
+            'spin_orbit_coupling',
+            'potential_type',
+            'shapefunction_uuid',
+        ]
 
         for _key in _keys:
             if extra_dictionary and _key in extra_dictionary.keys():
@@ -80,28 +87,63 @@ class KKRPotentialData(SinglefileData):
         return self.get_attribute('muffin_tin_zero')
 
     @property
-    def new_muffin_tin_radius(self):
-        """Return the list of the new muffin tin zero (rmtnew).
-        :return: a list with the new muffin tin zero (rmtnew).
-        """
-        return self.get_attribute('new_muffin_tin_radius')
-
-    @property
     def number_non_spherical_points(self):
         """Return the list of the number of non-spherical points (irns).
         :return: a list with the number of non-spherical points (irns).
         """
         return self.get_attribute('number_non_spherical_points')
 
+    @property
+    def cell(self):
+        """Return the cell vectors of the lattice.
+        :return: a list with the cell vectors of the lattice.
+        """
+        return self.get_attribute('cell')
+
+    @property
+    def position(self):
+        """Return the atomic positions.
+        :return: a list with the atomic positions.
+        """
+        return self.get_attribute('position')
+
+    @property
+    def calculation_magnetism(self):
+        """Return how magnetism is considered in the calculation.
+        :return: a list with the how magnetism is considered in the calculation.
+        """
+        return self.get_attribute('calculation_magnetism')
+
+    @property
+    def spin_orbit_coupling(self):
+        """Return how the spin orbit coupling is considered in the calculation.
+        :return: a list with the how the spin orbit coupling is considered in the calculation.
+        """
+        return self.get_attribute('spin_orbit_coupling')
+
+    @property
+    def potential_type(self):
+        """Return how the potential is considered in the calculation.
+        :return: a list with the how the potential is considered in the calculation.
+        """
+        return self.get_attribute('potential_type')
+
+    @property
+    def shapefunction_uuid(self):
+        """Return the uuid of the shapefunction associated with this potential.
+        :return: a string with the uuid of the shapefunction associated with this potential.
+        """
+        return self.get_attribute('shapefunction_uuid')
+
 
 def parse_kkr_potential(lines):
+    """Parse the KKR potential file."""
 
     potential_header = {
         'exchange_correlation': [],
         'atom_list': [],
         'muffin_tin_radius': [],
         'alat_au': 0,
-        'new_muffin_tin_radius': [],
         'wigner_seitz_radius': [],
         'fermi_energy': 0,
         'muffin_tin_zero': [],
@@ -132,7 +174,6 @@ def parse_kkr_potential(lines):
         potential_header['exchange_correlation'].append(_lines[0][1].strip())
         potential_header['muffin_tin_radius'].append(float(_lines[1][-1].split()[0]))
         potential_header['alat_au'] = float(_lines[1][-1].split()[1])
-        potential_header['new_muffin_tin_radius'].append(float(_lines[1][-1].split()[2]))
         potential_header['wigner_seitz_radius'].append(float(_lines[3][-1].split()[0]))
         potential_header['fermi_energy'] = float(_lines[3][-1].split()[1])
         potential_header['muffin_tin_zero'].append(float(_lines[3][-1].split()[2]))
