@@ -3,6 +3,7 @@ Define the data structure to store the potential from KKR
 """
 
 import re
+import numpy as np
 from aiida.orm import SinglefileData
 
 
@@ -24,11 +25,11 @@ class KKRPotentialData(SinglefileData):
 
         _keys = [
             'cell',
-            'position',
+            'positions',
             'calculation_magnetism',
             'spin_orbit_coupling',
             'potential_type',
-            'shapefunction_uuid',
+            'shape_function_uuid',
         ]
 
         for _key in _keys:
@@ -101,11 +102,11 @@ class KKRPotentialData(SinglefileData):
         return self.get_attribute('cell')
 
     @property
-    def position(self):
+    def positions(self):
         """Return the atomic positions.
         :return: a list with the atomic positions.
         """
-        return self.get_attribute('position')
+        return self.get_attribute('positions')
 
     @property
     def calculation_magnetism(self):
@@ -129,11 +130,11 @@ class KKRPotentialData(SinglefileData):
         return self.get_attribute('potential_type')
 
     @property
-    def shapefunction_uuid(self):
+    def shape_function_uuid(self):
         """Return the uuid of the shapefunction associated with this potential.
         :return: a string with the uuid of the shapefunction associated with this potential.
         """
-        return self.get_attribute('shapefunction_uuid')
+        return self.get_attribute('shape_function_uuid')
 
 
 def parse_kkr_potential(lines):
@@ -180,7 +181,7 @@ def parse_kkr_potential(lines):
         potential_header['irws'].append(int(_lines[4][-1].split()[0]))
         potential_header['radial_mesh_a'].append(float(_lines[5][-1].split()[0].replace('D', 'E')))
         potential_header['radial_mesh_b'].append(float(_lines[5][-1].split()[1].replace('D', 'E')))
-        potential_header['angular_momentum_cutoff'] = int(_lines[-2][-1].split()[0]) + 1
+        potential_header['angular_momentum_cutoff'] = int((np.sqrt(_lines[-1][-1].split()[2]) - 1) * 0.5)
         potential_header['number_non_spherical_points'].append(int(_lines[-1][-1].split()[1]))
         potential_header['isave'].append(int(_lines[-1][-1].split()[3]))
 
